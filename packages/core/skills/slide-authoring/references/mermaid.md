@@ -188,5 +188,6 @@ One clear diagram per page is always better than one dense diagram that requires
 - Adding actors, states, or arrows to make the composition symmetrical.
 - Inventing nodes or dependencies to make a diagram look richer.
 - Setting `fontSize` above 16px in themeVariables — causes label overflow.
+- Using CSS variables (`var(--osd-accent)`) in `themeVariables` — Mermaid renders SVG outside the DOM context, so CSS variables won't resolve. Use the actual color value (e.g. the `accent` const or a hex literal).
 - Node labels longer than ~5 words without testing visual fit.
 - Relying on lightbox to make an unreadable diagram acceptable — if you can't get the gist at slide scale, split it.

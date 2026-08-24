@@ -82,13 +82,22 @@ export function Mermaid({
   const [error, setError] = useState<unknown>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
+  const configRef = useRef(config);
+  const prevConfigKey = useRef('');
+  const currentConfigKey = JSON.stringify(config);
+  if (currentConfigKey !== prevConfigKey.current) {
+    configRef.current = config;
+    prevConfigKey.current = currentConfigKey;
+  }
+  const stableConfig = configRef.current;
+
   useEffect(() => {
     let active = true;
     const version = ++renderVersion.current;
     setDiagram(null);
     setError(null);
 
-    loadMermaid(config)
+    loadMermaid(stableConfig)
       .then((mermaid) => mermaid.render(nextRenderId(), chart, wrapperRef.current ?? undefined))
       .then(({ svg, bindFunctions }) => {
         if (!active || version !== renderVersion.current) return;
@@ -103,7 +112,7 @@ export function Mermaid({
     return () => {
       active = false;
     };
-  }, [chart, config]);
+  }, [chart, stableConfig]);
 
   useEffect(() => {
     if (!diagram || !diagramRef.current) return;

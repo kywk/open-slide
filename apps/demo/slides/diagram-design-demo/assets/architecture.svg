@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" role="img" aria-labelledby="arch-title arch-desc">
+  <title id="arch-title">System Architecture</title>
+  <desc id="arch-desc">Three-tier architecture: Client layer connects to API Gateway, which routes to microservices backed by a data layer.</desc>
+  <style>
+    .node { fill: none; stroke: #3a3a3a; stroke-width: 1; rx: 4; }
+    .node-accent { fill: none; stroke: #eb6c36; stroke-width: 1.5; rx: 4; }
+    .label { font-family: 'Geist', system-ui, sans-serif; font-size: 13px; fill: #1a1a1a; }
+    .label-accent { font-family: 'Geist', system-ui, sans-serif; font-size: 13px; fill: #eb6c36; font-weight: 500; }
+    .sublabel { font-family: 'Geist Mono', monospace; font-size: 10px; fill: #787878; }
+    .group-label { font-family: 'Instrument Serif', Georgia, serif; font-size: 11px; fill: #787878; font-style: italic; letter-spacing: 0.04em; }
+    .edge { stroke: #c0c0c0; stroke-width: 1; fill: none; marker-end: url(#arrow); }
+    .edge-accent { stroke: #eb6c36; stroke-width: 1; fill: none; marker-end: url(#arrow-accent); }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#c0c0c0" stroke-width="1"/></marker>
+    <marker id="arrow-accent" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#eb6c36" stroke-width="1"/></marker>
+  </defs>
+
+  <!-- Client Layer -->
+  <text x="80" y="44" class="group-label">Client Layer</text>
+  <rect x="48" y="56" width="120" height="48" class="node"/>
+  <text x="108" y="76" class="label" text-anchor="middle">Web App</text>
+  <text x="108" y="92" class="sublabel" text-anchor="middle">React SPA</text>
+  <rect x="192" y="56" width="120" height="48" class="node"/>
+  <text x="252" y="76" class="label" text-anchor="middle">Mobile</text>
+  <text x="252" y="92" class="sublabel" text-anchor="middle">iOS / Android</text>
+
+  <!-- API Gateway -->
+  <text x="420" y="44" class="group-label">API Gateway</text>
+  <rect x="388" y="56" width="144" height="48" class="node-accent"/>
+  <text x="460" y="76" class="label-accent" text-anchor="middle">Gateway</text>
+  <text x="460" y="92" class="sublabel" text-anchor="middle">auth · rate-limit · route</text>
+
+  <!-- Services -->
+  <text x="660" y="24" class="group-label">Services</text>
+  <rect x="628" y="36" width="132" height="44" class="node"/>
+  <text x="694" y="56" class="label" text-anchor="middle">Users</text>
+  <text x="694" y="70" class="sublabel" text-anchor="middle">:8081</text>
+
+  <rect x="628" y="100" width="132" height="44" class="node"/>
+  <text x="694" y="120" class="label" text-anchor="middle">Orders</text>
+  <text x="694" y="134" class="sublabel" text-anchor="middle">:8082</text>
+
+  <rect x="628" y="164" width="132" height="44" class="node"/>
+  <text x="694" y="184" class="label" text-anchor="middle">Notifications</text>
+  <text x="694" y="198" class="sublabel" text-anchor="middle">:8083</text>
+
+  <!-- Data Layer -->
+  <text x="660" y="252" class="group-label">Data Layer</text>
+  <rect x="628" y="264" width="132" height="44" class="node"/>
+  <text x="694" y="284" class="label" text-anchor="middle">PostgreSQL</text>
+  <text x="694" y="298" class="sublabel" text-anchor="middle">primary + replica</text>
+
+  <rect x="788" y="264" width="132" height="44" class="node"/>
+  <text x="854" y="284" class="label" text-anchor="middle">Redis</text>
+  <text x="854" y="298" class="sublabel" text-anchor="middle">cache · sessions</text>
+
+  <!-- Async -->
+  <text x="660" y="348" class="group-label">Async</text>
+  <rect x="628" y="360" width="132" height="44" class="node"/>
+  <text x="694" y="380" class="label" text-anchor="middle">Message Queue</text>
+  <text x="694" y="394" class="sublabel" text-anchor="middle">RabbitMQ</text>
+
+  <rect x="788" y="360" width="132" height="44" class="node"/>
+  <text x="854" y="380" class="label" text-anchor="middle">Workers</text>
+  <text x="854" y="394" class="sublabel" text-anchor="middle">email · pdf · sync</text>
+
+  <!-- Edges: Client → Gateway -->
+  <path d="M168,80 L388,80" class="edge-accent"/>
+  <path d="M312,80 L388,80" class="edge-accent"/>
+
+  <!-- Edges: Gateway → Services -->
+  <path d="M532,68 L628,58" class="edge"/>
+  <path d="M532,80 L628,122" class="edge"/>
+  <path d="M532,92 L628,186" class="edge"/>
+
+  <!-- Edges: Services → Data -->
+  <path d="M694,144 L694,264" class="edge"/>
+  <path d="M760,122 L788,284" class="edge"/>
+
+  <!-- Edges: Services → Async -->
+  <path d="M694,208 L694,360" class="edge"/>
+  <path d="M760,186 L788,380" class="edge"/>
+</svg>
