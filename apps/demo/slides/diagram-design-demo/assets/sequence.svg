@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 440" role="img" aria-labelledby="seq-title seq-desc">
+  <title id="seq-title">Auth Token Refresh</title>
+  <desc id="seq-desc">Sequence diagram showing a browser requesting a resource, receiving a 401, refreshing the token, and retrying successfully.</desc>
+  <style>
+    .actor-box { fill: none; stroke: #1a1a1a; stroke-width: 1; rx: 4; }
+    .actor-label { font-family: 'Geist', system-ui, sans-serif; font-size: 12px; fill: #1a1a1a; font-weight: 500; text-anchor: middle; }
+    .lifeline { stroke: #d4d4d4; stroke-width: 1; stroke-dasharray: 4 4; }
+    .msg { stroke: #1a1a1a; stroke-width: 1; fill: none; marker-end: url(#seq-arrow); }
+    .msg-reply { stroke: #787878; stroke-width: 1; fill: none; stroke-dasharray: 4 3; marker-end: url(#seq-arrow-gray); }
+    .msg-accent { stroke: #eb6c36; stroke-width: 1; fill: none; marker-end: url(#seq-arrow-accent); }
+    .msg-label { font-family: 'Geist', system-ui, sans-serif; font-size: 11px; fill: #1a1a1a; }
+    .msg-label-accent { font-family: 'Geist', system-ui, sans-serif; font-size: 11px; fill: #eb6c36; }
+    .msg-label-muted { font-family: 'Geist Mono', monospace; font-size: 10px; fill: #787878; }
+    .note { fill: #fef8f4; stroke: #eb6c36; stroke-width: 1; rx: 2; }
+    .note-text { font-family: 'Instrument Serif', Georgia, serif; font-size: 11px; fill: #1a1a1a; font-style: italic; }
+  </style>
+  <defs>
+    <marker id="seq-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,1 L7,4 L0,7" fill="none" stroke="#1a1a1a" stroke-width="1.2"/></marker>
+    <marker id="seq-arrow-gray" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,1 L7,4 L0,7" fill="none" stroke="#787878" stroke-width="1.2"/></marker>
+    <marker id="seq-arrow-accent" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,1 L7,4 L0,7" fill="none" stroke="#eb6c36" stroke-width="1.2"/></marker>
+  </defs>
+
+  <!-- Actors -->
+  <rect x="68" y="16" width="84" height="32" class="actor-box"/>
+  <text x="110" y="37" class="actor-label">Browser</text>
+  <rect x="288" y="16" width="84" height="32" class="actor-box"/>
+  <text x="330" y="37" class="actor-label">API</text>
+  <rect x="508" y="16" width="84" height="32" class="actor-box"/>
+  <text x="550" y="37" class="actor-label">Auth Server</text>
+
+  <!-- Lifelines -->
+  <line x1="110" y1="48" x2="110" y2="420" class="lifeline"/>
+  <line x1="330" y1="48" x2="330" y2="420" class="lifeline"/>
+  <line x1="550" y1="48" x2="550" y2="420" class="lifeline"/>
+
+  <!-- Message 1: GET /orders -->
+  <line x1="110" y1="88" x2="330" y2="88" class="msg"/>
+  <text x="220" y="80" class="msg-label" text-anchor="middle">GET /orders</text>
+
+  <!-- Message 2: 401 Unauthorized -->
+  <line x1="330" y1="132" x2="110" y2="132" class="msg-reply"/>
+  <text x="220" y="124" class="msg-label-muted" text-anchor="middle">401 Unauthorized</text>
+
+  <!-- Note: token expired -->
+  <rect x="36" y="148" width="148" height="28" class="note"/>
+  <text x="110" y="167" class="note-text" text-anchor="middle">access token expired</text>
+
+  <!-- Message 3: POST /token (refresh) -->
+  <line x1="110" y1="208" x2="550" y2="208" class="msg-accent"/>
+  <text x="330" y="200" class="msg-label-accent" text-anchor="middle">POST /token (refresh_token grant)</text>
+
+  <!-- Message 4: new access_token -->
+  <line x1="550" y1="252" x2="110" y2="252" class="msg-reply"/>
+  <text x="330" y="244" class="msg-label-muted" text-anchor="middle">200 { access_token, expires_in }</text>
+
+  <!-- Message 5: retry GET /orders -->
+  <line x1="110" y1="308" x2="330" y2="308" class="msg"/>
+  <text x="220" y="300" class="msg-label" text-anchor="middle">GET /orders (new token)</text>
+
+  <!-- Message 6: 200 OK -->
+  <line x1="330" y1="352" x2="110" y2="352" class="msg-reply"/>
+  <text x="220" y="344" class="msg-label-muted" text-anchor="middle">200 OK [ … ]</text>
+
+  <!-- Bottom actors -->
+  <rect x="68" y="388" width="84" height="32" class="actor-box"/>
+  <text x="110" y="409" class="actor-label">Browser</text>
+  <rect x="288" y="388" width="84" height="32" class="actor-box"/>
+  <text x="330" y="409" class="actor-label">API</text>
+  <rect x="508" y="388" width="84" height="32" class="actor-box"/>
+  <text x="550" y="409" class="actor-label">Auth Server</text>
+</svg>

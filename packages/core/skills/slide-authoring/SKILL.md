@@ -23,7 +23,8 @@ Each framework primitive has a full reference file under `references/` in this s
 | `design` const + `var(--osd-X)` tokens | writing any new slide (default baseline) | `references/design-system.md` |
 | Assets + `<ImagePlaceholder>` | importing images/videos or leaving a placeholder | `references/assets.md` |
 | Webfonts | loading any non-system font | `references/webfonts.md` |
-| `<Mermaid>` | representing flows, sequences, relationships, states, or dependencies | `references/mermaid.md` |
+| Diagrams (architecture, flow, sequence…) | representing flows, sequences, relationships, states, or dependencies | `references/diagrams.md` |
+| `<Mermaid>` (direct use) | using the built-in Mermaid renderer specifically | `references/mermaid.md` |
 | `useSlidePageNumber()` | rendering a page-number footer | `references/page-numbers.md` |
 | `<Steps>` / `<Step>` | staging a page's reveal | `references/steps.md` |
 | `SlideTransition` | declaring any enter/exit animation | `references/transitions.md` |
@@ -246,9 +247,11 @@ When a page genuinely needs a real image **the user has to provide** (product sc
 
 If a footer shows the current page (`03 / 12`), read it from `useSlidePageNumber()` — **never hardcode** `n` / `TOTAL`. See `references/page-numbers.md` for the hook's contract and where it can be called.
 
-## Mermaid diagrams
+## Diagrams
 
-Use `<Mermaid>` when the source meaning is primarily relational, sequential, state-based, dependency-based, or flow-based—not merely because a diagram would be decorative. Read `references/mermaid.md` before choosing a diagram type or transforming source content; it contains the representation decision guide, semantic-fidelity rules, fixed-canvas layout guidance, and paste-ready examples.
+When a page needs a diagram (architecture, flowchart, sequence, state machine, timeline, swimlane, quadrant, or any visual representing relationships/flows/structure), **read `references/diagrams.md` first** — it decides whether to use the `diagram-design` skill (if installed) for editorial-quality SVG output, or the built-in `<Mermaid>` component.
+
+If using `<Mermaid>` directly, read `references/mermaid.md` for the representation decision guide, semantic-fidelity rules, fixed-canvas layout guidance, and paste-ready examples.
 
 ## Stepped reveals (`<Steps>` / `<Step>`)
 

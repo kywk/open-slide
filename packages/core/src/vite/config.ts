@@ -21,8 +21,23 @@ function findPackageRoot(fromFile: string): string {
   throw new Error(`Could not find package.json walking up from ${fromFile}`);
 }
 
+function findWorkspaceRoot(from: string): string {
+  let dir = from;
+  while (dir !== path.dirname(dir)) {
+    if (
+      existsSync(path.join(dir, 'pnpm-workspace.yaml')) ||
+      existsSync(path.join(dir, 'pnpm-workspace.yml'))
+    ) {
+      return dir;
+    }
+    dir = path.dirname(dir);
+  }
+  return from;
+}
+
 const PKG_ROOT = findPackageRoot(fileURLToPath(import.meta.url));
 const APP_ROOT = path.join(PKG_ROOT, 'src', 'app');
+const WORKSPACE_ROOT = findWorkspaceRoot(PKG_ROOT);
 
 function readCoreVersion(): string {
   try {
@@ -114,7 +129,7 @@ export async function createViteConfig(opts: CreateViteConfigOptions): Promise<I
     server: {
       port: config.port ?? 5173,
       ...(config.allowedHosts !== undefined ? { allowedHosts: config.allowedHosts } : {}),
-      fs: { allow: [APP_ROOT, userCwd, slidesAbs, themesAbs, assetsAbs] },
+      fs: { allow: [WORKSPACE_ROOT, PKG_ROOT, APP_ROOT, userCwd, slidesAbs, themesAbs, assetsAbs] },
     },
     build: {
       outDir: path.resolve(userCwd, 'dist'),
