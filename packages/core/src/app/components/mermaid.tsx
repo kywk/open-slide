@@ -26,16 +26,9 @@ type RenderedDiagram = {
 let mermaidPromise: Promise<typeof import('mermaid')['default']> | undefined;
 let renderSequence = 0;
 
-function loadMermaid(config?: MermaidConfig) {
+function loadMermaid() {
   if (!mermaidPromise) {
-    mermaidPromise = import('mermaid').then(({ default: mermaid }) => {
-      mermaid.initialize({
-        ...config,
-        startOnLoad: false,
-        securityLevel: config?.securityLevel ?? 'strict',
-      });
-      return mermaid;
-    });
+    mermaidPromise = import('mermaid').then(({ default: mermaid }) => mermaid);
   }
   return mermaidPromise;
 }
@@ -84,7 +77,7 @@ export function Mermaid({
 
   const configRef = useRef(config);
   const prevConfigKey = useRef('');
-  const currentConfigKey = JSON.stringify(config);
+  const currentConfigKey = JSON.stringify(config ?? null);
   if (currentConfigKey !== prevConfigKey.current) {
     configRef.current = config;
     prevConfigKey.current = currentConfigKey;
@@ -97,8 +90,15 @@ export function Mermaid({
     setDiagram(null);
     setError(null);
 
-    loadMermaid(stableConfig)
-      .then((mermaid) => mermaid.render(nextRenderId(), chart, wrapperRef.current ?? undefined))
+    loadMermaid()
+      .then((mermaid) => {
+        mermaid.initialize({
+          ...stableConfig,
+          startOnLoad: false,
+          securityLevel: stableConfig?.securityLevel ?? 'strict',
+        });
+        return mermaid.render(nextRenderId(), chart, wrapperRef.current ?? undefined);
+      })
       .then(({ svg, bindFunctions }) => {
         if (!active || version !== renderVersion.current) return;
         setDiagram({ element: normalizeSvg(svg), bindFunctions });
@@ -191,8 +191,15 @@ function MermaidLightbox({
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    loadMermaid(config)
-      .then((mermaid) => mermaid.render(nextRenderId(), chart, containerRef.current ?? undefined))
+    loadMermaid()
+      .then((mermaid) => {
+        mermaid.initialize({
+          ...config,
+          startOnLoad: false,
+          securityLevel: config?.securityLevel ?? 'strict',
+        });
+        return mermaid.render(nextRenderId(), chart, containerRef.current ?? undefined);
+      })
       .then(({ svg, bindFunctions }) => {
         if (!containerRef.current) return;
         const el = normalizeSvg(svg);
