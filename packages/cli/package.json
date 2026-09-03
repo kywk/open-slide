@@ -1,6 +1,6 @@
 {
   "name": "@open-slide/cli",
-  "version": "1.4.1",
+  "version": "2.0.0-beta.1",
   "description": "Scaffold an open-slide workspace with Claude Code skills preconfigured.",
   "type": "module",
   "bin": {
@@ -18,7 +18,7 @@
     "prepack": "pnpm build"
   },
   "engines": {
-    "node": ">=18"
+    "node": "^20.19.0 || >=22.12.0"
   },
   "keywords": [
     "slides",
@@ -44,14 +44,13 @@
     "access": "public"
   },
   "dependencies": {
+    "@clack/prompts": "^1.7.0",
     "chalk": "^6.0.0",
-    "commander": "^15.0.0",
-    "prompts": "^2.4.2"
+    "commander": "^15.0.0"
   },
   "devDependencies": {
-    "@types/node": "^22.19.17",
-    "@types/prompts": "^2.4.9",
-    "tsdown": "^0.9.9",
-    "typescript": "^5.9.3"
+    "@types/node": "^26.2.0",
+    "tsdown": "^0.22.14",
+    "typescript": "^7.0.2"
   }
 }
