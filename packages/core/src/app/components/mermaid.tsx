@@ -38,6 +38,23 @@ function nextRenderId(): string {
   return `open-slide-mermaid-${renderSequence}`;
 }
 
+function resolveCanvasBg(el: HTMLElement | null): string {
+  if (!el) return '#ffffff';
+  const canvas = el.closest('[data-osd-canvas]') as HTMLElement | null;
+  if (!canvas) return '#ffffff';
+  return getComputedStyle(canvas).getPropertyValue('--osd-bg').trim() || '#ffffff';
+}
+
+function isLightColor(color: string): boolean {
+  const hex = color.replace('#', '');
+  if (hex.length < 6) return true;
+  const r = Number.parseInt(hex.slice(0, 2), 16);
+  const g = Number.parseInt(hex.slice(2, 4), 16);
+  const b = Number.parseInt(hex.slice(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.5;
+}
+
 function normalizeSvg(svg: string): SVGSVGElement {
   const template = document.createElement('template');
   template.innerHTML = svg.trim();
@@ -74,6 +91,7 @@ export function Mermaid({
   const [diagram, setDiagram] = useState<RenderedDiagram | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [canvasBg, setCanvasBg] = useState('#ffffff');
 
   const configRef = useRef(config);
   const prevConfigKey = useRef('');
@@ -123,7 +141,10 @@ export function Mermaid({
   }, [diagram]);
 
   const handleClick = useCallback(() => {
-    if (lightbox && diagram) setLightboxOpen(true);
+    if (lightbox && diagram) {
+      setCanvasBg(resolveCanvasBg(wrapperRef.current));
+      setLightboxOpen(true);
+    }
   }, [lightbox, diagram]);
 
   const isExpandable = lightbox && !!diagram;
@@ -173,7 +194,12 @@ export function Mermaid({
         )}
       </div>
       {lightbox && lightboxOpen && diagram && (
-        <MermaidLightbox chart={chart} config={config} onClose={() => setLightboxOpen(false)} />
+        <MermaidLightbox
+          chart={chart}
+          config={config}
+          canvasBg={canvasBg}
+          onClose={() => setLightboxOpen(false)}
+        />
       )}
     </>
   );
@@ -182,13 +208,16 @@ export function Mermaid({
 function MermaidLightbox({
   chart,
   config,
+  canvasBg,
   onClose,
 }: {
   chart: string;
   config?: MermaidConfig;
+  canvasBg: string;
   onClose: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const light = isLightColor(canvasBg);
 
   useEffect(() => {
     loadMermaid()
@@ -222,6 +251,7 @@ function MermaidLightbox({
   }, [onClose]);
 
   const portalTarget = (document.fullscreenElement as HTMLElement) ?? document.body;
+  const scrimColor = light ? 'rgba(0, 0, 0, 0.6)' : 'rgba(0, 0, 0, 0.85)';
 
   return createPortal(
     <div
@@ -238,8 +268,8 @@ function MermaidLightbox({
         zIndex: 99999,
         display: 'grid',
         placeItems: 'center',
-        padding: '5vh 5vw',
-        background: 'rgba(0, 0, 0, 0.85)',
+        padding: '2vh 2vw',
+        background: scrimColor,
         backdropFilter: 'blur(4px)',
         cursor: 'zoom-out',
         animation: 'osd-lightbox-in 180ms ease-out',
@@ -257,8 +287,14 @@ function MermaidLightbox({
         style={{
           width: '100%',
           height: '100%',
-          maxWidth: '90vw',
-          maxHeight: '90vh',
+          maxWidth: '96vw',
+          maxHeight: '96vh',
+          background: canvasBg,
+          borderRadius: 12,
+          padding: '1rem',
+          boxShadow: light
+            ? '0 8px 60px rgba(0,0,0,0.3)'
+            : '0 8px 60px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.08)',
           cursor: 'zoom-out',
         }}
       />
