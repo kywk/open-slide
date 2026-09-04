@@ -58,6 +58,23 @@ diagram-design excels at these — use it when available:
 - Quantitative charts that Mermaid handles natively (pie, gitGraph, journey)
 - The slide already uses `<Mermaid>` elsewhere and visual consistency matters
 
+## Rule: every inline SVG goes through `<InlineSvg>`
+
+Any SVG you want rendered *inside* a slide — regardless of where it came from (diagram-design output, a hand-written `<svg>`, or an imported `.svg` file) — must be rendered with `<InlineSvg svg={...} />` from `@open-slide/core`, never as a raw `<svg>` element in JSX.
+
+`<InlineSvg>` handles viewBox normalization, responsive sizing, `alt`/`aria-label`, and click-to-expand **lightbox** (enabled by default, matching `<Mermaid>`). A raw `<svg>` element gets none of this.
+
+```tsx
+import { InlineSvg } from '@open-slide/core';
+import chart from './assets/chart.svg?raw'; // ?raw → import as string
+
+<InlineSvg svg={chart} alt="…" lightbox />
+```
+
+- Import the SVG source with the `?raw` suffix so Vite gives you the string `<InlineSvg>` expects.
+- `lightbox` is the default; pass `lightbox={false}` only for a decorative mark that shouldn't expand.
+- Reach for `<img src="…svg">` **only** for a non-expandable decorative asset (logo, small icon). It does not get a lightbox and cannot — if the SVG is content worth enlarging, use `<InlineSvg>` instead. See `references/assets.md`.
+
 ## Path A: Using diagram-design
 
 ### Workflow
@@ -112,12 +129,12 @@ Tell diagram-design to use these values so the output matches the slide's visual
 
 ### SVG embedding rules
 
+Render with `<InlineSvg>` per the general rule above (viewBox normalization, responsive sizing, lightbox). diagram-design specifics:
+
 - Import with `?raw` suffix for Vite raw string import
-- Use `<InlineSvg svg={...} />` from `@open-slide/core` to render — it handles viewBox normalization, responsive sizing, and lightbox
 - Set `width` and `height` via the `style` prop to control diagram size within the 1920×1080 canvas
-- Lightbox is enabled by default (click to expand) — same UX as `<Mermaid>`
 - Pass `alt` for accessibility when the SVG doesn't already have `<title>` / `aria-label`
-- The SVG is static — no JavaScript, no external requests (beyond optional Google Fonts references which can be stripped)
+- Strip Google Fonts `<link>` references from the extracted SVG, or accept the system font fallback for offline use
 
 ## Path B: Using Mermaid (fallback)
 
@@ -162,3 +179,4 @@ Do not repeat this on subsequent diagram requests in the same session.
 - ❌ Embedding diagram-design's full HTML wrapper (with `<html>`, `<head>`, editorial cards) — extract only the `<svg>`.
 - ❌ Ignoring the slide's DesignSystem when invoking diagram-design — the diagram must match the deck's palette and fonts.
 - ❌ Leaving Google Fonts `<link>` tags in the extracted SVG — strip external references or accept the system font fallback for offline use.
+- ❌ Hand-writing a raw `<svg>` element in slide JSX for content — you lose lightbox and sizing. Route content SVGs through `<InlineSvg svg={…} />`; reserve `<img src="…svg">` for decoration.

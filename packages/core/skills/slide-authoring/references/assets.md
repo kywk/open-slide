@@ -28,6 +28,26 @@ A `themes/*.md` file may name an asset path in its prose (e.g. "use `@assets/log
 
 For a pure-text slide, don't create `slides/<id>/assets/` at all.
 
+## SVG assets: `<InlineSvg>` vs `<img>`
+
+An SVG asset can be embedded two ways — pick by whether it's *content* or *decoration*:
+
+- **Content worth enlarging** (diagrams, charts, architecture, anything a viewer might want to zoom into) → import with `?raw` and render `<InlineSvg svg={…} lightbox />`. This is the only path that gives viewBox normalization, responsive sizing, and click-to-expand lightbox. See `references/diagrams.md`.
+
+  ```tsx
+  import diagram from '@assets/diagrams/flow.svg?raw';
+  <InlineSvg svg={diagram} alt="…" lightbox />
+  ```
+
+- **Decoration** (logos, small marks, background flourishes) → import as a URL and use `<img>`. No lightbox, and that's correct — nobody zooms a logo.
+
+  ```tsx
+  import logo from '@assets/logos/acme.svg';
+  <img src={logo} alt="Acme" />
+  ```
+
+Never hand-write a raw `<svg>` element in slide JSX for content — you lose the lightbox and sizing behavior. Route it through `<InlineSvg>`.
+
 ## Image placeholders (`<ImagePlaceholder>`)
 
 When a page genuinely needs a real image **the user has to provide** — a product screenshot, a team photo, a chart from their data — leave a typed placeholder instead of inventing a stand-in:
