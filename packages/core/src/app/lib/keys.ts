@@ -1,6 +1,18 @@
+export const IS_APPLE =
+  typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
+
 export function isTypingTarget(target: EventTarget | null): boolean {
   return (
     target instanceof HTMLElement && (target.isContentEditable || target.matches('input, textarea'))
+  );
+}
+
+export function isShortcutControlTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element &&
+    !!target.closest(
+      'button, a, input, textarea, select, summary, [role="dialog"], [role="menu"], [role="listbox"], [role="tablist"], [data-inspector-ui], [data-design-ui]',
+    )
   );
 }
 

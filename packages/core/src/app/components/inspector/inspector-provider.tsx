@@ -1,4 +1,4 @@
-import { Crosshair } from 'lucide-react';
+import { Eye, MessageSquare, PanelRight, Pencil } from 'lucide-react';
 import {
   createContext,
   type ReactNode,
@@ -11,12 +11,23 @@ import {
 } from 'react';
 import { toast } from 'sonner';
 import { useHistory } from '@/components/history-provider';
+import { IconSwitcherIndicator } from '@/components/icon-switcher-indicator';
+import { IconTooltip } from '@/components/icon-tooltip';
 import { Button } from '@/components/ui/button';
-import { type SlideComment, useComments } from '@/lib/inspector/use-comments';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { TooltipTrigger } from '@/components/ui/tooltip';
+import { findSlideSource } from '@/lib/inspector/fiber';
+import {
+  appendTextEdit,
+  type TextEditOp,
+  type TextEditStep,
+} from '@/lib/inspector/text-edit-timeline';
+import { type AddCommentInput, type SlideComment, useComments } from '@/lib/inspector/use-comments';
 import { type Edit, type EditOp, useEditor } from '@/lib/inspector/use-editor';
-import { isTypingTarget } from '@/lib/keys';
+import { useVisualEditor, type VisualEdit } from '@/lib/inspector/use-visual-editor';
+import { isShortcutControlTarget, isTypingTarget } from '@/lib/keys';
 import { textDiff } from '@/lib/text-diff';
-import { useLocale } from '@/lib/use-locale';
+import { format, plural, useLocale } from '@/lib/use-locale';
 import { round2 } from '@/lib/utils';
 import { AssetPickerDialog } from './asset-picker-dialog';
 import { ImageCropDialog, type ImageCropRect } from './image-crop-dialog';
@@ -25,7 +36,82 @@ export type SelectedTarget = {
   line: number;
   column: number;
   anchor: HTMLElement;
+  canvasPath?: number[];
 };
+
+const INSTANCE_ID_ATTR = 'data-slide-instance-id';
+
+function elementPath(root: Element, el: Element): number[] | null {
+  const path: number[] = [];
+  for (let node = el; node !== root; ) {
+    const parent = node.parentElement;
+    if (!parent) return null;
+    path.unshift(Array.from(parent.children).indexOf(node));
+    node = parent;
+  }
+  return path;
+}
+
+function elementAtPath(root: Element | null, path: number[]): HTMLElement | null {
+  let node = root;
+  for (const index of path) node = node?.children[index] ?? null;
+  return node instanceof HTMLElement ? node : null;
+}
+
+function rememberTarget(target: SelectedTarget): SelectedTarget {
+  const root = target.anchor.closest('[data-osd-canvas]');
+  const path = root && elementPath(root, target.anchor);
+  return path ? { ...target, canvasPath: path } : target;
+}
+
+function findRememberedTarget(root: HTMLElement, path?: number[]): HTMLElement | null {
+  if (!path) return null;
+  return elementAtPath(root.querySelector('[data-osd-canvas]'), path);
+}
+
+// Enough to find an edited element again after its page remounts. The path is
+// relative to the page layer, since an outgoing page shifts canvas-level paths.
+type RevealTarget = {
+  line: number;
+  column: number;
+  anchor: HTMLElement;
+  tagName: string;
+  pagePath: number[] | null;
+  instanceId: string | null;
+};
+
+// Only the incoming layer carries it: an interrupted transition relabels and
+// remounts the outgoing one, so anything found there goes stale.
+const PAGE_LAYER_ATTR = 'data-osd-current-page';
+
+function captureRevealTarget(target: SelectedTarget): RevealTarget {
+  const layer = target.anchor.closest(`[${PAGE_LAYER_ATTR}]`);
+  return {
+    line: target.line,
+    column: target.column,
+    anchor: target.anchor,
+    tagName: target.anchor.tagName,
+    pagePath: layer && elementPath(layer, target.anchor),
+    instanceId: target.anchor.getAttribute(INSTANCE_ID_ATTR),
+  };
+}
+
+function locateRevealTarget(layer: Element, target: RevealTarget): HTMLElement | null {
+  if (target.anchor.isConnected && layer.contains(target.anchor)) return target.anchor;
+  if (target.instanceId) {
+    const stamped = layer.querySelector<HTMLElement>(
+      `[${INSTANCE_ID_ATTR}="${target.instanceId}"]`,
+    );
+    if (stamped) return stamped;
+  }
+  const byPath = target.pagePath && elementAtPath(layer, target.pagePath);
+  if (byPath?.tagName === target.tagName) return byPath;
+  return layer.querySelector<HTMLElement>(`[data-slide-loc="${target.line}:${target.column}"]`);
+}
+
+function sameAnchors(a: SelectedTarget[], b: SelectedTarget[]): boolean {
+  return a.length === b.length && a.every((target, index) => target.anchor === b[index].anchor);
+}
 
 export type InlineEditTarget = SelectedTarget & {
   point?: { x: number; y: number };
@@ -37,44 +123,60 @@ export type InlineEditTarget = SelectedTarget & {
   session?: number;
 };
 
+export type InlineTextSelection = { start: number; end: number };
+type InlineStyleHandler = (ops: EditOp[]) => boolean;
+
 type AssetAttrOp = { assetPath: string; previewUrl: string };
 type Sequenced<T> = T & { seq: number };
 type StyleOp = { value: string | null; prevText?: string };
-type TextRangeStyleOp = {
-  instanceId: string;
-  start: number;
-  end: number;
-  key: string;
-  value: string | null;
-  prevText?: string;
-};
 
 type Bucket = {
   line: number;
   column: number;
   styleOps: Map<string, Sequenced<StyleOp>>;
-  rangeStyleOps: Map<string, Sequenced<TextRangeStyleOp>>;
   // Text edits are scoped per DOM instance: a reused component renders
   // the same JSX `<h2>{title}</h2>` at multiple call sites with the same
   // `data-slide-loc`, but each call site's prop literal is independent.
   // Style/attr ops stay shared because they edit the JSX definition.
-  textOps: Map<string /* instanceId */, Sequenced<{ value: string }>>;
+  textEdits: Map<string, TextEditStep[]>;
+  textTargets: Map<string, SelectedTarget & { pageIndex: number }>;
   attrOps: Map<string, Sequenced<AssetAttrOp>>;
   // Pre-edit snapshot of the DOM, captured the first time we touch
   // each style key / text / attribute. Used by `cancelEdits` to revert.
   origStyle: Map<string, string>;
   origTexts: Map<string /* instanceId */, { value: string }>;
-  origHtmls: Map<string /* instanceId */, string>;
+  origHtmls: Map<string /* instanceId */, TextDomSnapshot>;
   origAttrs: Map<string, string | null>;
 };
 
-const INSTANCE_ID_ATTR = 'data-slide-instance-id';
-
-function readInstanceId(el: HTMLElement): string | null {
-  return el.getAttribute(INSTANCE_ID_ATTR);
+function createBucket(line: number, column: number): Bucket {
+  return {
+    line,
+    column,
+    styleOps: new Map(),
+    textEdits: new Map(),
+    textTargets: new Map(),
+    attrOps: new Map(),
+    origStyle: new Map(),
+    origTexts: new Map(),
+    origHtmls: new Map(),
+    origAttrs: new Map(),
+  };
 }
 
-export type DomTextPart = { node: Text | HTMLBRElement; current: string };
+export type DomTextPart = {
+  node: Text | HTMLBRElement;
+  current: string;
+  preserveWhitespace?: boolean;
+};
+type WhiteSpaceResolver = (element: HTMLElement) => string;
+type TextDomSnapshot = { html: string; whiteSpaces: string[] };
+
+const computedWhiteSpace: WhiteSpaceResolver = (element) => getComputedStyle(element).whiteSpace;
+
+function preservesWhitespace(whiteSpace: string): boolean {
+  return whiteSpace === 'pre' || whiteSpace === 'pre-wrap' || whiteSpace === 'break-spaces';
+}
 
 export function readEditableText(el: HTMLElement): string {
   const parts: DomTextPart[] = [];
@@ -82,41 +184,44 @@ export function readEditableText(el: HTMLElement): string {
   return parts.map((part) => part.current).join('');
 }
 
-export function collectDomTextParts(node: Node, out: DomTextPart[]): void {
+export function collectDomTextParts(
+  node: Node,
+  out: DomTextPart[],
+  whiteSpace: WhiteSpaceResolver = computedWhiteSpace,
+): void {
   const parts: DomTextPart[] = [];
-  collectDomTextPartsRaw(node, parts);
+  collectDomTextPartsRaw(node, parts, whiteSpace);
   out.push(...normalizeDomTextParts(parts));
 }
 
-function collectDomTextPartsRaw(node: Node, out: DomTextPart[]): void {
+function collectDomTextPartsRaw(
+  node: Node,
+  out: DomTextPart[],
+  whiteSpace: WhiteSpaceResolver,
+): void {
   for (const child of Array.from(node.childNodes)) {
     if (child instanceof Text) {
-      const current = renderedTextNodeValue(child);
-      if (current) out.push({ node: child, current });
+      const preserveWhitespace = preservesWhitespace(
+        child.parentElement ? whiteSpace(child.parentElement) : '',
+      );
+      const current = preserveWhitespace ? child.data : child.data.replace(/\s+/g, ' ');
+      if (current) out.push({ node: child, current, preserveWhitespace });
     } else if (child instanceof HTMLBRElement) {
       out.push({ node: child, current: '\n' });
     } else if (child instanceof HTMLElement) {
-      collectDomTextPartsRaw(child, out);
+      collectDomTextPartsRaw(child, out, whiteSpace);
     }
   }
 }
 
 function normalizeDomTextParts(parts: DomTextPart[]): DomTextPart[] {
   return parts.flatMap((part, index) => {
-    if (part.current === '\n') return [part];
+    if (part.preserveWhitespace || part.current === '\n') return [part];
     let current = part.current;
     if (parts[index - 1]?.current === '\n') current = current.replace(/^\s+/, '');
     if (parts[index + 1]?.current === '\n') current = current.replace(/\s+$/, '');
     return current ? [{ ...part, current }] : [];
   });
-}
-
-function renderedTextNodeValue(node: Text): string {
-  const whiteSpace = node.parentElement ? getComputedStyle(node.parentElement).whiteSpace : '';
-  if (whiteSpace === 'pre' || whiteSpace === 'pre-wrap' || whiteSpace === 'break-spaces') {
-    return node.data;
-  }
-  return node.data.replace(/\s+/g, ' ');
 }
 
 function textFragment(value: string): DocumentFragment {
@@ -138,9 +243,13 @@ function replaceDomTextPart(part: DomTextPart, value: string) {
   part.node.replaceWith(fragment);
 }
 
-function setEditableText(el: HTMLElement, value: string) {
+function setEditableText(
+  el: HTMLElement,
+  value: string,
+  whiteSpace: WhiteSpaceResolver = computedWhiteSpace,
+) {
   const parts: DomTextPart[] = [];
-  collectDomTextParts(el, parts);
+  collectDomTextParts(el, parts, whiteSpace);
   const current = parts.map((part) => part.current).join('');
   if (current === value) return;
   if (parts.length === 0) {
@@ -184,21 +293,15 @@ function setEditableText(el: HTMLElement, value: string) {
   }
 }
 
-function rangeStyleKey(
-  instanceId: string,
-  op: { start: number; end: number; key: string },
-): string {
-  return `${instanceId}:${op.start}:${op.end}:${op.key}`;
-}
-
 function applyDomTextRangeStyle(
   el: HTMLElement,
-  op: Pick<TextRangeStyleOp, 'start' | 'end' | 'key' | 'value'>,
+  op: Extract<TextEditOp, { kind: 'set-text-range-style' }>,
+  whiteSpace: WhiteSpaceResolver,
 ) {
   const value = op.value ?? resetValueForRangeStyle(op.key);
   if (value === null) return;
   const parts: DomTextPart[] = [];
-  collectDomTextParts(el, parts);
+  collectDomTextParts(el, parts, whiteSpace);
   let offset = 0;
   for (const part of parts) {
     const partStart = offset;
@@ -227,25 +330,77 @@ function resetValueForRangeStyle(key: string): string | null {
   return null;
 }
 
-function replayDomTextRangeStyles(el: HTMLElement, html: string, ops: TextRangeStyleOp[]) {
-  const preview = document.createElement('span');
-  preview.innerHTML = html;
-  for (const op of ops) applyDomTextRangeStyle(preview, op);
-  if (el.innerHTML !== preview.innerHTML) el.innerHTML = preview.innerHTML;
+function textSnapshotElements(el: HTMLElement): HTMLElement[] {
+  return [
+    el,
+    ...Array.from(el.querySelectorAll('*')).filter((node) => node instanceof HTMLElement),
+  ];
 }
+
+function captureTextDom(
+  el: HTMLElement,
+  whiteSpace: WhiteSpaceResolver = computedWhiteSpace,
+): TextDomSnapshot {
+  return { html: el.innerHTML, whiteSpaces: textSnapshotElements(el).map(whiteSpace) };
+}
+
+function textEditHtml(snapshot: TextDomSnapshot, steps: TextEditStep[]): TextDomSnapshot {
+  const preview = document.createElement('span');
+  preview.innerHTML = snapshot.html;
+  const contexts = new Map(
+    textSnapshotElements(preview).map((element, index) => [element, snapshot.whiteSpaces[index]]),
+  );
+  const whiteSpace: WhiteSpaceResolver = (element) => {
+    for (let node: HTMLElement | null = element; node; node = node.parentElement) {
+      const value = contexts.get(node);
+      if (value !== undefined) return value;
+    }
+    return 'normal';
+  };
+  for (const { op } of steps) {
+    if (op.kind === 'set-text') setEditableText(preview, op.value, whiteSpace);
+    else applyDomTextRangeStyle(preview, op, whiteSpace);
+  }
+  return captureTextDom(preview, whiteSpace);
+}
+
+function replayDomTextEdits(el: HTMLElement, snapshot: TextDomSnapshot, steps: TextEditStep[]) {
+  const next = textEditHtml(snapshot, steps).html;
+  if (el.innerHTML !== next) el.innerHTML = next;
+}
+
+export type InspectorMode = 'preview' | 'edit' | 'comment';
 
 type InspectorCtx = {
   slideId: string;
+  pageIndex: number;
+  mode: InspectorMode;
+  setMode: (mode: InspectorMode) => void;
+  // True while the visual editor owns the canvas (`mode === 'edit'`).
   active: boolean;
+  commentMode: boolean;
+  exitCommentMode: () => void;
   toggle: () => void;
+  panelOpen: boolean;
+  panelHidden: boolean;
+  togglePanel: () => void;
   cancel: () => void;
   comments: SlideComment[];
   error: string | null;
-  add: (line: number, column: number, text: string) => Promise<void>;
+  add: (input: AddCommentInput) => Promise<void>;
+  update: (id: string, text: string) => Promise<void>;
   remove: (id: string) => Promise<void>;
+  selection: SelectedTarget[];
+  setSelection: (targets: SelectedTarget[]) => void;
+  bufferBatch: (edits: VisualEdit[], coalesceKey?: string) => void;
+  visual: ReturnType<typeof useVisualEditor>;
   selected: SelectedTarget | null;
   setSelected: (s: SelectedTarget | null) => void;
   inlineEdit: InlineEditTarget | null;
+  inlineSelection: InlineTextSelection | null;
+  setInlineSelection: (selection: InlineTextSelection | null) => void;
+  registerInlineStyle: (handler: InlineStyleHandler) => () => void;
+  applyInlineStyle: InlineStyleHandler;
   startInlineEdit: (target: InlineEditTarget) => void;
   stopInlineEdit: () => void;
   // Bumped on every buffered-op mutation (including undo/redo restores) so
@@ -272,24 +427,81 @@ export function useInspector(): InspectorCtx {
   return v;
 }
 
+export function useOptionalInspector(): InspectorCtx | null {
+  return useContext(Ctx);
+}
+
 export function InspectorProvider({
   slideId,
   pageIndex,
+  panelHidden = false,
+  onPanelOpen,
   children,
 }: {
   slideId: string;
   pageIndex: number;
+  panelHidden?: boolean;
+  onPanelOpen?: () => void;
   children: ReactNode;
 }) {
-  const [active, setActive] = useState(false);
-  const [selected, setSelected] = useState<SelectedTarget | null>(null);
+  const [mode, setModeState] = useState<InspectorMode>(import.meta.env.DEV ? 'edit' : 'preview');
+  const active = mode === 'edit';
+  const commentMode = mode === 'comment';
+  // Where Esc / toggling the comment tool off returns the user to.
+  const modeBeforeCommentRef = useRef<Exclude<InspectorMode, 'comment'>>('preview');
+  const [panelOpen, setPanelOpen] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth >= 1024,
+  );
+  const [selection, setSelectionState] = useState<SelectedTarget[]>([]);
+  const selected = selection.at(-1) ?? null;
+  // Targets an undo/redo should select once their page is on screen.
+  const pendingRevealRef = useRef<{ pageIndex: number; targets: RevealTarget[] } | null>(null);
+  const setSelection = useCallback((targets: SelectedTarget[]) => {
+    pendingRevealRef.current = null;
+    setSelectionState(targets.map(rememberTarget));
+  }, []);
+  const setSelected = useCallback((target: SelectedTarget | null) => {
+    pendingRevealRef.current = null;
+    setSelectionState((previous) => {
+      if (!target) return [];
+      const primary = previous.at(-1);
+      if (
+        primary?.anchor === target.anchor &&
+        primary.line === target.line &&
+        primary.column === target.column
+      )
+        return previous;
+      if (
+        primary?.anchor === target.anchor ||
+        (primary?.line === target.line && primary.column === target.column)
+      ) {
+        return [...previous.slice(0, -1), rememberTarget(target)];
+      }
+      return [rememberTarget(target)];
+    });
+  }, []);
   const [inlineEdit, setInlineEdit] = useState<InlineEditTarget | null>(null);
+  const [inlineSelection, setInlineSelection] = useState<InlineTextSelection | null>(null);
+  const inlineStyleRef = useRef<InlineStyleHandler | null>(null);
+  const registerInlineStyle = useCallback((handler: InlineStyleHandler) => {
+    inlineStyleRef.current = handler;
+    return () => {
+      if (inlineStyleRef.current === handler) inlineStyleRef.current = null;
+    };
+  }, []);
+  const applyInlineStyle = useCallback(
+    (ops: EditOp[]) => inlineStyleRef.current?.(ops) ?? false,
+    [],
+  );
   const [opsVersion, setOpsVersion] = useState(0);
-  const { comments, error, add, remove } = useComments(slideId);
+  const { comments, error, add, update, remove } = useComments(slideId);
   const { applyEdit, applyEdits } = useEditor(slideId);
   const history = useHistory();
 
   const pendingRef = useRef<Map<string, Bucket>>(new Map());
+  const inlineBaselinesRef = useRef(
+    new WeakMap<HTMLElement, { text: string; html: TextDomSnapshot }>(),
+  );
   const instanceCounterRef = useRef(0);
   const pendingSeqRef = useRef(0);
   const [pendingCount, setPendingCount] = useState(0);
@@ -323,12 +535,7 @@ export function InspectorProvider({
   const refreshCount = useCallback(() => {
     let n = 0;
     for (const b of pendingRef.current.values()) {
-      if (
-        b.styleOps.size > 0 ||
-        b.rangeStyleOps.size > 0 ||
-        b.textOps.size > 0 ||
-        b.attrOps.size > 0
-      ) {
+      if (b.styleOps.size > 0 || b.textEdits.size > 0 || b.attrOps.size > 0) {
         n++;
       }
     }
@@ -350,6 +557,61 @@ export function InspectorProvider({
     return root.querySelector<HTMLElement>(`[data-slide-loc="${line}:${column}"]`);
   }, []);
 
+  const pageIndexRef = useRef(pageIndex);
+  pageIndexRef.current = pageIndex;
+  const findTextAnchor = useCallback(
+    (instanceId: string, target?: SelectedTarget & { pageIndex: number }) => {
+      const root = document.querySelector<HTMLElement>('[data-inspector-root]');
+      if (!root) return null;
+      const stamped = root.querySelector<HTMLElement>(`[${INSTANCE_ID_ATTR}="${instanceId}"]`);
+      if (stamped) return stamped;
+      // Off-page instances must not fall back to the loc: a reused component on
+      // the visible page shares it, and replaying this instance's HTML there
+      // would clobber that page's text. Their page's remount replays the buffer.
+      if (!target || target.pageIndex !== pageIndexRef.current) return null;
+      const anchor =
+        findRememberedTarget(root, target.canvasPath) ??
+        root.querySelector<HTMLElement>(`[data-slide-loc="${target.line}:${target.column}"]`);
+      if (!anchor || anchor.tagName !== target.anchor.tagName) return null;
+      anchor.setAttribute(INSTANCE_ID_ATTR, instanceId);
+      return anchor;
+    },
+    [],
+  );
+
+  const flushReveal = useCallback((): boolean => {
+    const pending = pendingRevealRef.current;
+    if (!pending) return true;
+    const layer = document.querySelector(
+      `[data-inspector-root] [${PAGE_LAYER_ATTR}="${pending.pageIndex}"]`,
+    );
+    if (!layer) return false;
+    const resolved: SelectedTarget[] = [];
+    for (const target of pending.targets) {
+      const anchor = locateRevealTarget(layer, target);
+      const hit = anchor && findSlideSource(anchor, slideId, { hostOnly: true });
+      if (hit && hit.anchor === anchor && !resolved.some((t) => t.anchor === anchor)) {
+        resolved.push(hit);
+      }
+    }
+    if (resolved.length === 0) return false;
+    pendingRevealRef.current = null;
+    setSelectionState((previous) =>
+      sameAnchors(previous, resolved) ? previous : resolved.map(rememberTarget),
+    );
+    return true;
+  }, [slideId]);
+
+  // Undo/redo selects what it changed. Off-page targets wait for the page
+  // effect below, since the page mounts a render after `pageIndex` changes.
+  const revealTargets = useCallback(
+    (targets: RevealTarget[], targetPage: number) => {
+      pendingRevealRef.current = { pageIndex: targetPage, targets };
+      if (targetPage === pageIndexRef.current && !flushReveal()) pendingRevealRef.current = null;
+    },
+    [flushReveal],
+  );
+
   // Mutate bucket + DOM without recording history. Shared by `bufferOps`
   // (the public, history-recording entry point) and by `redo` closures.
   const applyOpsRaw = useCallback(
@@ -357,18 +619,7 @@ export function InspectorProvider({
       const key = `${line}:${column}`;
       let bucket = pendingRef.current.get(key);
       if (!bucket) {
-        bucket = {
-          line,
-          column,
-          styleOps: new Map(),
-          rangeStyleOps: new Map(),
-          textOps: new Map(),
-          attrOps: new Map(),
-          origStyle: new Map(),
-          origTexts: new Map(),
-          origHtmls: new Map(),
-          origAttrs: new Map(),
-        };
+        bucket = createBucket(line, column);
         pendingRef.current.set(key, bucket);
       }
       const style = (anchor?.style ?? {}) as unknown as Record<string, string>;
@@ -380,40 +631,43 @@ export function InspectorProvider({
           }
           bucket.styleOps.set(op.key, { value: op.value, prevText: op.prevText, seq });
           if (anchor?.isConnected) style[op.key] = op.value ?? '';
-        } else if (op.kind === 'set-text-range-style') {
+        } else if (op.kind === 'set-text-range-style' || op.kind === 'set-text') {
           if (!anchor) continue;
           const instanceId = ensureInstanceId(anchor);
-          if (!bucket.origHtmls.has(instanceId)) bucket.origHtmls.set(instanceId, anchor.innerHTML);
-          const nextOp: Sequenced<TextRangeStyleOp> = {
-            instanceId,
-            start: op.start,
-            end: op.end,
-            key: op.key,
-            value: op.value,
-            prevText: op.prevText ?? readEditableText(anchor),
-            seq,
-          };
-          bucket.rangeStyleOps.set(rangeStyleKey(instanceId, op), nextOp);
-          if (anchor.isConnected) {
-            replayDomTextRangeStyles(
-              anchor,
-              bucket.origHtmls.get(instanceId) ?? anchor.innerHTML,
-              Array.from(bucket.rangeStyleOps.values()).filter(
-                (item) => item.instanceId === instanceId,
-              ),
+          bucket.textTargets.set(instanceId, {
+            ...rememberTarget({ line, column, anchor }),
+            pageIndex,
+          });
+          const prevText = op.prevText ?? readEditableText(anchor);
+          if (!bucket.origTexts.has(instanceId)) {
+            bucket.origTexts.set(instanceId, { value: prevText });
+          }
+          if (!bucket.origHtmls.has(instanceId)) {
+            const baseline = inlineBaselinesRef.current.get(anchor);
+            bucket.origHtmls.set(
+              instanceId,
+              baseline?.text === prevText
+                ? baseline.html
+                : textEditHtml(captureTextDom(anchor), [
+                    { seq, op: { kind: 'set-text', value: prevText } },
+                  ]),
             );
           }
-        } else if (op.kind === 'set-text') {
-          // Reused JSX renders multiple DOM nodes with the same
-          // `data-slide-loc` but distinct call-site literals; without an
-          // anchor we can't tell which instance to route to, so skip.
-          if (!anchor) continue;
-          const instanceId = ensureInstanceId(anchor);
-          if (!bucket.origTexts.has(instanceId)) {
-            bucket.origTexts.set(instanceId, { value: readEditableText(anchor) });
+          const steps = appendTextEdit(
+            bucket.textEdits.get(instanceId) ?? [],
+            { ...op, prevText },
+            seq,
+          );
+          bucket.textEdits.set(instanceId, steps);
+          if (anchor.isConnected) {
+            if (op.kind === 'set-text') setEditableText(anchor, op.value);
+            else
+              replayDomTextEdits(
+                anchor,
+                bucket.origHtmls.get(instanceId) ?? captureTextDom(anchor),
+                steps,
+              );
           }
-          bucket.textOps.set(instanceId, { value: op.value, seq });
-          if (anchor.isConnected) setEditableText(anchor, op.value);
         } else if (op.kind === 'set-attr-asset') {
           if (anchor && !bucket.origAttrs.has(op.attr)) {
             bucket.origAttrs.set(
@@ -431,7 +685,7 @@ export function InspectorProvider({
       }
       refreshCount();
     },
-    [refreshCount, ensureInstanceId],
+    [refreshCount, ensureInstanceId, pageIndex],
   );
 
   // Pre-edit snapshot for history: capture the *currently effective* value of
@@ -440,21 +694,14 @@ export function InspectorProvider({
   type StyleSnap = {
     kind: 'style';
     key: string;
-    value: Sequenced<StyleOp> | string | null;
-    existed: boolean;
-  };
-  type RangeStyleSnap = {
-    kind: 'range-style';
-    id: string;
-    instanceId: string;
-    value: Sequenced<TextRangeStyleOp> | null;
-    existed: boolean;
-  };
+  } & ({ value: Sequenced<StyleOp>; existed: true } | { value: string | null; existed: false });
   type TextSnap = {
     kind: 'text';
     instanceId: string;
-    value: string | null;
-    existed: boolean;
+    target?: SelectedTarget & { pageIndex: number };
+    steps: TextEditStep[];
+    html?: TextDomSnapshot;
+    text?: string;
   };
   type AttrSnap = {
     kind: 'attr';
@@ -462,7 +709,7 @@ export function InspectorProvider({
     value: Sequenced<AssetAttrOp> | string | null;
     source: 'op' | 'orig' | 'dom-missing' | 'dom-present';
   };
-  type Snap = StyleSnap | RangeStyleSnap | TextSnap | AttrSnap;
+  type Snap = StyleSnap | TextSnap | AttrSnap;
 
   const snapshotForOps = useCallback(
     (line: number, column: number, anchor: HTMLElement, ops: EditOp[]): Snap[] => {
@@ -488,30 +735,16 @@ export function InspectorProvider({
               existed: false,
             });
           }
-        } else if (op.kind === 'set-text-range-style') {
+        } else if (op.kind === 'set-text-range-style' || op.kind === 'set-text') {
           const instanceId = ensureInstanceId(anchor);
-          const id = rangeStyleKey(instanceId, op);
-          const existing = bucket?.rangeStyleOps.get(id);
           snaps.push({
-            kind: 'range-style',
-            id,
+            kind: 'text',
             instanceId,
-            value: existing ? { ...existing } : null,
-            existed: !!existing,
+            target: bucket?.textTargets.get(instanceId),
+            steps: bucket?.textEdits.get(instanceId) ?? [],
+            html: bucket?.origHtmls.get(instanceId),
+            text: bucket?.origTexts.get(instanceId)?.value,
           });
-        } else if (op.kind === 'set-text') {
-          const instanceId = ensureInstanceId(anchor);
-          const existing = bucket?.textOps.get(instanceId);
-          if (existing) {
-            snaps.push({ kind: 'text', instanceId, value: existing.value, existed: true });
-          } else {
-            snaps.push({
-              kind: 'text',
-              instanceId,
-              value: readEditableText(anchor),
-              existed: false,
-            });
-          }
         } else if (op.kind === 'set-attr-asset') {
           const prev = bucket?.attrOps.get(op.attr);
           if (prev) {
@@ -543,9 +776,13 @@ export function InspectorProvider({
   // Restore the snapshotted values to bucket + DOM. Mirrors the bucket-empty
   // logic of `cancelEdits` so an undo back to the absolute baseline cleans up.
   const restoreSnapshot = useCallback(
-    (line: number, column: number, snaps: Snap[]) => {
+    (line: number, column: number, snaps: Snap[], recreate = false) => {
       const key = `${line}:${column}`;
-      const bucket = pendingRef.current.get(key);
+      let bucket = pendingRef.current.get(key);
+      if (!bucket && recreate) {
+        bucket = createBucket(line, column);
+        pendingRef.current.set(key, bucket);
+      }
       if (!bucket) return;
       // Style/attr snaps share the loc-level anchor (first match);
       // text snaps look up their per-instance node below.
@@ -554,47 +791,29 @@ export function InspectorProvider({
       for (const snap of snaps) {
         if (snap.kind === 'style') {
           if (snap.existed) {
-            const prev =
-              typeof snap.value === 'object' && snap.value !== null
-                ? snap.value
-                : { value: snap.value };
+            const prev = snap.value;
             const v = prev.value ?? '';
-            bucket.styleOps.set(snap.key, { ...prev, seq: ++pendingSeqRef.current });
+            // Undo restores the edit's original position in the text timeline.
+            bucket.styleOps.set(snap.key, { ...prev });
             if (sharedAnchor?.isConnected) sharedStyle[snap.key] = v;
           } else {
             bucket.styleOps.delete(snap.key);
             const orig = bucket.origStyle.get(snap.key);
             if (sharedAnchor?.isConnected) sharedStyle[snap.key] = orig ?? '';
           }
-        } else if (snap.kind === 'range-style') {
-          const textAnchor = findAnchor(line, column, snap.instanceId);
-          if (snap.existed && snap.value) {
-            bucket.rangeStyleOps.set(snap.id, { ...snap.value, seq: ++pendingSeqRef.current });
-          } else {
-            bucket.rangeStyleOps.delete(snap.id);
-          }
+        } else if (snap.kind === 'text') {
+          if (snap.target) bucket.textTargets.set(snap.instanceId, snap.target);
+          const textAnchor = findTextAnchor(
+            snap.instanceId,
+            bucket.textTargets.get(snap.instanceId),
+          );
+          if (snap.html !== undefined) bucket.origHtmls.set(snap.instanceId, snap.html);
+          if (snap.text !== undefined) bucket.origTexts.set(snap.instanceId, { value: snap.text });
+          if (snap.steps.length) bucket.textEdits.set(snap.instanceId, snap.steps);
+          else bucket.textEdits.delete(snap.instanceId);
           const html = bucket.origHtmls.get(snap.instanceId);
           if (textAnchor?.isConnected && html !== undefined) {
-            replayDomTextRangeStyles(
-              textAnchor,
-              html,
-              Array.from(bucket.rangeStyleOps.values()).filter(
-                (op) => op.instanceId === snap.instanceId,
-              ),
-            );
-          }
-        } else if (snap.kind === 'text') {
-          const textAnchor = findAnchor(line, column, snap.instanceId);
-          if (snap.existed) {
-            bucket.textOps.set(snap.instanceId, {
-              value: snap.value ?? '',
-              seq: ++pendingSeqRef.current,
-            });
-            if (textAnchor?.isConnected) setEditableText(textAnchor, snap.value ?? '');
-          } else {
-            bucket.textOps.delete(snap.instanceId);
-            const orig = bucket.origTexts.get(snap.instanceId);
-            if (textAnchor?.isConnected) setEditableText(textAnchor, orig?.value ?? '');
+            replayDomTextEdits(textAnchor, html, snap.steps);
           }
         } else if (snap.kind === 'attr') {
           if (snap.source === 'op') {
@@ -611,28 +830,34 @@ export function InspectorProvider({
           }
         }
       }
-      if (
-        bucket.styleOps.size === 0 &&
-        bucket.rangeStyleOps.size === 0 &&
-        bucket.textOps.size === 0 &&
-        bucket.attrOps.size === 0
-      ) {
+      if (bucket.styleOps.size === 0 && bucket.textEdits.size === 0 && bucket.attrOps.size === 0) {
         pendingRef.current.delete(key);
       }
       refreshCount();
     },
-    [findAnchor, refreshCount],
+    [findAnchor, findTextAnchor, refreshCount],
   );
 
   const bufferOps = useCallback(
     (line: number, column: number, anchor: HTMLElement, ops: EditOp[]) => {
+      const target = findSlideSource(anchor, slideId, { hostOnly: true }) ?? {
+        line,
+        column,
+        anchor,
+      };
       const instanceId = ops.some(
         (op) => op.kind === 'set-text' || op.kind === 'set-text-range-style',
       )
-        ? ensureInstanceId(anchor)
+        ? ensureInstanceId(target.anchor)
         : undefined;
-      const snaps = snapshotForOps(line, column, anchor, ops);
-      applyOpsRaw(line, column, anchor, ops);
+      const snaps = snapshotForOps(target.line, target.column, target.anchor, ops);
+      applyOpsRaw(target.line, target.column, target.anchor, ops);
+      const textAfter = snapshotForOps(target.line, target.column, target.anchor, ops).filter(
+        (snap) => snap.kind === 'text',
+      );
+      const sharedOps = ops.filter(
+        (op) => op.kind !== 'set-text' && op.kind !== 'set-text-range-style',
+      );
       const first = ops[0];
       const opKey = first
         ? first.kind === 'set-style'
@@ -641,31 +866,110 @@ export function InspectorProvider({
             ? first.attr
             : 'text'
         : 'noop';
-      const coalesceKey = `inspector:${line}:${column}:${first?.kind ?? 'noop'}:${opKey}`;
+      const coalesceKey = `inspector:${target.line}:${target.column}:${first?.kind ?? 'noop'}:${opKey}`;
+      const reveal = [captureRevealTarget(target)];
       history.record({
         coalesceKey,
-        undo: () => restoreSnapshot(line, column, snaps),
-        redo: () => applyOpsRaw(line, column, findAnchor(line, column, instanceId), ops),
+        pageIndex,
+        undo: () => {
+          restoreSnapshot(target.line, target.column, snaps);
+          revealTargets(reveal, pageIndex);
+        },
+        redo: () => {
+          if (sharedOps.length) {
+            applyOpsRaw(
+              target.line,
+              target.column,
+              findAnchor(target.line, target.column, instanceId),
+              sharedOps,
+            );
+          }
+          if (textAfter.length) restoreSnapshot(target.line, target.column, textAfter, true);
+          revealTargets(reveal, pageIndex);
+        },
       });
     },
-    [applyOpsRaw, snapshotForOps, restoreSnapshot, findAnchor, history, ensureInstanceId],
+    [
+      applyOpsRaw,
+      snapshotForOps,
+      restoreSnapshot,
+      findAnchor,
+      history,
+      ensureInstanceId,
+      slideId,
+      pageIndex,
+      revealTargets,
+    ],
   );
+
+  const bufferBatch = useCallback(
+    (input: VisualEdit[], coalesceKey?: string) => {
+      if (input.length === 0 || committing) return;
+      const edits = input.map((edit) => ({
+        ...edit,
+        ...findSlideSource(edit.anchor, slideId, { hostOnly: true }),
+      }));
+      const snapshots = edits.map((edit) =>
+        snapshotForOps(edit.line, edit.column, edit.anchor, edit.ops),
+      );
+      for (const edit of edits) applyOpsRaw(edit.line, edit.column, edit.anchor, edit.ops);
+      const reveal = edits.map(captureRevealTarget);
+      history.record({
+        coalesceKey,
+        pageIndex,
+        undo: () => {
+          for (let index = edits.length - 1; index >= 0; index--) {
+            const edit = edits[index];
+            restoreSnapshot(edit.line, edit.column, snapshots[index]);
+          }
+          revealTargets(reveal, pageIndex);
+        },
+        redo: () => {
+          for (const edit of edits)
+            applyOpsRaw(edit.line, edit.column, findAnchor(edit.line, edit.column), edit.ops);
+          revealTargets(reveal, pageIndex);
+        },
+      });
+    },
+    [
+      applyOpsRaw,
+      snapshotForOps,
+      restoreSnapshot,
+      findAnchor,
+      history,
+      committing,
+      slideId,
+      pageIndex,
+      revealTargets,
+    ],
+  );
+
+  const visual = useVisualEditor({
+    active,
+    inlineEditing: !!inlineEdit,
+    committing,
+    slideId,
+    selection,
+    setSelection,
+    bufferBatch,
+  });
 
   const commitEdits = useCallback(async () => {
     const buckets = pendingRef.current;
     if (buckets.size === 0) return;
     type PendingItem = {
-      key: string;
+      bucket: Bucket;
       seq: number;
+      instanceId?: string;
       edit: Edit;
       onSuccess: (bucket: Bucket) => void;
     };
     const pending: PendingItem[] = [];
-    for (const [key, bucket] of buckets) {
-      const { line, column, styleOps, rangeStyleOps, textOps, attrOps, origTexts } = bucket;
+    for (const bucket of buckets.values()) {
+      const { line, column, styleOps, textEdits, attrOps } = bucket;
       for (const [k, op] of styleOps) {
         pending.push({
-          key,
+          bucket,
           seq: op.seq,
           edit: {
             line,
@@ -674,12 +978,13 @@ export function InspectorProvider({
           },
           onSuccess: (b) => {
             b.styleOps.delete(k);
+            b.origStyle.delete(k);
           },
         });
       }
       for (const [attr, op] of attrOps) {
         pending.push({
-          key,
+          bucket,
           seq: op.seq,
           edit: {
             line,
@@ -695,51 +1000,44 @@ export function InspectorProvider({
           },
           onSuccess: (b) => {
             b.attrOps.delete(attr);
+            b.origAttrs.delete(attr);
           },
         });
       }
-      for (const [id, op] of rangeStyleOps) {
-        pending.push({
-          key,
-          seq: op.seq,
-          edit: {
-            line,
-            column,
-            ops: [
-              {
-                kind: 'set-text-range-style',
-                start: op.start,
-                end: op.end,
-                key: op.key,
-                value: op.value,
-                prevText: op.prevText,
-              },
-            ],
-          },
-          onSuccess: (b) => {
-            b.rangeStyleOps.delete(id);
-          },
-        });
-      }
-      // Per-instance text edits — one Edit per call site, each with its
-      // own prevText so the server can disambiguate among siblings.
-      for (const [instanceId, textOp] of textOps) {
-        const orig = origTexts.get(instanceId);
-        pending.push({
-          key,
-          seq: textOp.seq,
-          edit: {
-            line,
-            column,
-            ops: [{ kind: 'set-text', value: textOp.value, prevText: orig?.value }],
-          },
-          onSuccess: (b) => {
-            b.textOps.delete(instanceId);
-          },
-        });
+      for (const [instanceId, steps] of textEdits) {
+        const target = bucket.textTargets.get(instanceId);
+        for (const step of steps) {
+          pending.push({
+            bucket,
+            seq: step.seq,
+            instanceId,
+            edit: {
+              line: target?.line ?? line,
+              column: target?.column ?? column,
+              ops: [step.op],
+            },
+            onSuccess: (b) => {
+              const html = b.origHtmls.get(instanceId);
+              if (html !== undefined) b.origHtmls.set(instanceId, textEditHtml(html, [step]));
+              if (step.op.kind === 'set-text')
+                b.origTexts.set(instanceId, { value: step.op.value });
+              const remaining = (b.textEdits.get(instanceId) ?? []).filter(
+                (item) => item.seq !== step.seq,
+              );
+              if (remaining.length) b.textEdits.set(instanceId, remaining);
+              else b.textEdits.delete(instanceId);
+            },
+          });
+        }
       }
     }
     pending.sort((a, b) => a.seq - b.seq);
+    const lastTextEdit = new Map<string, number>();
+    for (const [index, item] of pending.entries()) {
+      if (!item.instanceId) continue;
+      item.edit.dependsOn = lastTextEdit.get(item.instanceId);
+      lastTextEdit.set(item.instanceId, index);
+    }
     if (pending.length === 0) {
       pendingRef.current = new Map();
       setPendingCount(0);
@@ -753,17 +1051,16 @@ export function InspectorProvider({
       for (let i = 0; i < results.length; i++) {
         const item = pending[i];
         const r = results[i];
-        const bucket = pendingRef.current.get(item.key);
+        const bucket = item.bucket;
         if (r.ok) {
-          if (bucket) {
-            item.onSuccess(bucket);
-            if (
-              bucket.styleOps.size === 0 &&
-              bucket.rangeStyleOps.size === 0 &&
-              bucket.textOps.size === 0 &&
-              bucket.attrOps.size === 0
-            ) {
-              pendingRef.current.delete(item.key);
+          item.onSuccess(bucket);
+          if (
+            bucket.styleOps.size === 0 &&
+            bucket.textEdits.size === 0 &&
+            bucket.attrOps.size === 0
+          ) {
+            for (const [key, pendingBucket] of pendingRef.current) {
+              if (pendingBucket === bucket) pendingRef.current.delete(key);
             }
           }
         } else {
@@ -802,7 +1099,7 @@ export function InspectorProvider({
       for (const [instanceId, html] of b.origHtmls) {
         const textEl =
           root?.querySelector<HTMLElement>(`[${INSTANCE_ID_ATTR}="${instanceId}"]`) ?? null;
-        if (textEl?.isConnected) textEl.innerHTML = html;
+        if (textEl?.isConnected) textEl.innerHTML = html.html;
       }
       for (const [instanceId, orig] of b.origTexts) {
         const textEl =
@@ -812,6 +1109,7 @@ export function InspectorProvider({
     }
     pendingRef.current = new Map();
     setPendingCount(0);
+    setOpsVersion((version) => version + 1);
     history.clear();
   }, [history]);
 
@@ -849,24 +1147,6 @@ export function InspectorProvider({
         const v = op.value ?? '';
         if (style[key] !== v) style[key] = v;
       }
-      // Text replays per-instance: only the originally clicked DOM node
-      // (stamped with its `data-slide-instance-id`) gets the buffered
-      // value, so siblings of a reused component aren't clobbered.
-      const instanceId = readInstanceId(el);
-      if (instanceId) {
-        const html = bucket.origHtmls.get(instanceId);
-        if (html !== undefined) {
-          replayDomTextRangeStyles(
-            el,
-            html,
-            Array.from(bucket.rangeStyleOps.values()).filter((op) => op.instanceId === instanceId),
-          );
-        }
-        const textOp = bucket.textOps.get(instanceId);
-        if (textOp && readEditableText(el) !== textOp.value) {
-          setEditableText(el, textOp.value);
-        }
-      }
       for (const [attr, op] of bucket.attrOps) {
         if (el.getAttribute(attr) !== op.previewUrl) el.setAttribute(attr, op.previewUrl);
       }
@@ -876,73 +1156,177 @@ export function InspectorProvider({
     const replayAll = () => {
       if (pendingRef.current.size === 0) return;
       observer?.disconnect();
+      const relocations: { key: string; nextKey: string; bucket: Bucket }[] = [];
+      for (const [key, bucket] of pendingRef.current) {
+        for (const [instanceId, target] of bucket.textTargets) {
+          if (target.pageIndex !== pageIndex) continue;
+          const stamped = root.querySelector<HTMLElement>(`[${INSTANCE_ID_ATTR}="${instanceId}"]`);
+          const anchor = stamped ?? findRememberedTarget(root, target.canvasPath);
+          if (!anchor || anchor.tagName !== target.anchor.tagName) continue;
+          const steps = bucket.textEdits.get(instanceId) ?? [];
+          const html = bucket.origHtmls.get(instanceId);
+          if (!html) continue;
+          if (!stamped) {
+            const text = readEditableText(anchor);
+            const matchesBaseline = bucket.origTexts.get(instanceId)?.value === text;
+            if (
+              !matchesBaseline &&
+              !steps.some((step) => step.op.kind === 'set-text' && step.op.value === text)
+            )
+              continue;
+          }
+          const hit = findSlideSource(anchor, slideId, { hostOnly: true });
+          if (!hit || hit.anchor !== anchor) continue;
+          anchor.setAttribute(INSTANCE_ID_ATTR, instanceId);
+          bucket.textTargets.set(instanceId, { ...rememberTarget(hit), pageIndex });
+          bucket.line = hit.line;
+          bucket.column = hit.column;
+          // Native editing can mutate child nodes before its input event updates the buffer.
+          if (!anchor.isContentEditable) replayDomTextEdits(anchor, html, steps);
+        }
+        const nextKey = `${bucket.line}:${bucket.column}`;
+        if (nextKey !== key) relocations.push({ key, nextKey, bucket });
+      }
+      let moved = true;
+      while (moved) {
+        moved = false;
+        for (let index = relocations.length - 1; index >= 0; index--) {
+          const { key, nextKey, bucket } = relocations[index];
+          if (pendingRef.current.has(nextKey)) continue;
+          pendingRef.current.delete(key);
+          pendingRef.current.set(nextKey, bucket);
+          relocations.splice(index, 1);
+          moved = true;
+        }
+      }
       root.querySelectorAll<HTMLElement>('[data-slide-loc]').forEach(applyBuffered);
-      observer?.observe(root, { childList: true, subtree: true });
+      observer?.observe(root, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['data-slide-loc'],
+      });
     };
 
     replayAll();
     observer = new MutationObserver(replayAll);
-    observer.observe(root, { childList: true, subtree: true });
+    observer.observe(root, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-slide-loc'],
+    });
     return () => observer?.disconnect();
-  }, []);
+  }, [pageIndex, slideId]);
 
   useEffect(() => {
-    void pageIndex;
-    setSelected(null);
-  }, [pageIndex]);
-
-  // Never clear `selected` on a miss: the observer can fire between an
-  // "old removed" and "new added" mutation batch, and clearing then would
-  // drop a selection that's about to reattach on the next fire.
-  useEffect(() => {
-    if (!selected) return;
+    setSelectionState([]);
+    const pending = pendingRevealRef.current;
+    if (!pending) return;
+    if (pending.pageIndex !== pageIndex) {
+      pendingRevealRef.current = null;
+      return;
+    }
+    if (flushReveal()) return;
     const root = document.querySelector<HTMLElement>('[data-inspector-root]');
     if (!root) return;
-
-    const revalidate = () => {
-      if (selected.anchor.isConnected) return;
-      const next = root.querySelector<HTMLElement>(
-        `[data-slide-loc="${selected.line}:${selected.column}"]`,
-      );
-      if (next && next !== selected.anchor) {
-        setSelected({ ...selected, anchor: next });
-      }
-    };
-
-    revalidate();
-    const observer = new MutationObserver(revalidate);
+    const observer = new MutationObserver(() => {
+      if (flushReveal()) observer.disconnect();
+    });
     observer.observe(root, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, [selected]);
+  }, [pageIndex, flushReveal]);
+
+  useEffect(() => {
+    if (!selection.length) return;
+    const root = document.querySelector<HTMLElement>('[data-inspector-root]');
+    if (!root) return;
+    const revalidate = () => {
+      let changed = false;
+      const next = selection.map((target) => {
+        const anchor = target.anchor.isConnected
+          ? target.anchor
+          : (findRememberedTarget(root, target.canvasPath) ??
+            root.querySelector<HTMLElement>(`[data-slide-loc="${target.line}:${target.column}"]`));
+        if (!anchor) return target;
+        const hit = findSlideSource(anchor, slideId, { hostOnly: true });
+        if (
+          !hit ||
+          (hit.anchor === target.anchor && hit.line === target.line && hit.column === target.column)
+        )
+          return target;
+        changed = true;
+        return rememberTarget(hit);
+      });
+      if (changed) setSelection(next);
+    };
+    revalidate();
+    const observer = new MutationObserver(revalidate);
+    observer.observe(root, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-slide-loc'],
+    });
+    return () => observer.disconnect();
+  }, [selection, setSelection, slideId]);
+
+  const setMode = useCallback(
+    (next: InspectorMode) => {
+      if (next === mode) return;
+      if (next === 'comment' && mode !== 'comment') modeBeforeCommentRef.current = mode;
+      if (mode === 'edit') {
+        setSelected(null);
+        setInlineEdit(null);
+      }
+      setModeState(next);
+    },
+    [mode, setSelected],
+  );
 
   const toggle = useCallback(() => {
-    setActive((a) => {
-      if (a) setSelected(null);
-      return !a;
-    });
-  }, []);
+    setMode(active ? 'preview' : 'edit');
+  }, [active, setMode]);
+
+  const exitCommentMode = useCallback(() => {
+    if (commentMode) setMode(modeBeforeCommentRef.current);
+  }, [commentMode, setMode]);
+
+  const togglePanel = useCallback(() => {
+    setPanelOpen(!active || panelHidden || !panelOpen);
+    setMode('edit');
+    onPanelOpen?.();
+  }, [active, panelHidden, panelOpen, onPanelOpen, setMode]);
 
   const cancel = useCallback(() => {
-    setActive(false);
     setSelected(null);
-  }, []);
+  }, [setSelected]);
 
   const inlineEditSessionRef = useRef(0);
-  const startInlineEdit = useCallback((target: InlineEditTarget) => {
-    setSelected({ line: target.line, column: target.column, anchor: target.anchor });
-    setInlineEdit({ ...target, session: ++inlineEditSessionRef.current });
-  }, []);
+  const startInlineEdit = useCallback(
+    (target: InlineEditTarget) => {
+      inlineBaselinesRef.current.set(target.anchor, {
+        text: readEditableText(target.anchor),
+        html: captureTextDom(target.anchor),
+      });
+      setInlineSelection(null);
+      setSelection([{ line: target.line, column: target.column, anchor: target.anchor }]);
+      setInlineEdit({ ...target, session: ++inlineEditSessionRef.current });
+    },
+    [setSelection],
+  );
 
   const stopInlineEdit = useCallback(() => {
     setInlineEdit(null);
+    setInlineSelection(null);
   }, []);
 
   // Deselecting, selecting another element, or an HMR anchor swap all end
   // the inline session — the contenteditable node is gone or no longer the
   // selection's anchor.
   useEffect(() => {
-    if (inlineEdit && selected?.anchor !== inlineEdit.anchor) setInlineEdit(null);
-  }, [selected, inlineEdit]);
+    if (inlineEdit && selected?.anchor !== inlineEdit.anchor) stopInlineEdit();
+  }, [selected, inlineEdit, stopInlineEdit]);
 
   const openReplace = useCallback((anchor: HTMLElement) => {
     const loc = anchor.dataset.slideLoc;
@@ -957,13 +1341,35 @@ export function InspectorProvider({
   useEffect(() => {
     if (import.meta.env.PROD) return;
     const onKey = (e: KeyboardEvent) => {
-      if (isTypingTarget(e.target)) return;
-      if (e.key !== 'i' && e.key !== 'I') return;
-      toggle();
+      if (
+        e.defaultPrevented ||
+        isShortcutControlTarget(e.target) ||
+        isTypingTarget(e.target) ||
+        e.isComposing ||
+        e.keyCode === 229 ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.altKey
+      )
+        return;
+      if (e.key === 'i' || e.key === 'I') {
+        e.preventDefault();
+        togglePanel();
+      } else if (e.key === 'c' || e.key === 'C') {
+        e.preventDefault();
+        if (commentMode) exitCommentMode();
+        else setMode('comment');
+      } else if (e.key === 'v' || e.key === 'V') {
+        e.preventDefault();
+        setMode('preview');
+      } else if (e.key === 'e' || e.key === 'E') {
+        e.preventDefault();
+        setMode('edit');
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [toggle]);
+  }, [togglePanel, commentMode, exitCommentMode, setMode]);
 
   const openCrop = useCallback((anchor: HTMLImageElement) => {
     const loc = anchor.dataset.slideLoc;
@@ -989,16 +1395,33 @@ export function InspectorProvider({
   const value = useMemo<InspectorCtx>(
     () => ({
       slideId,
+      pageIndex,
+      mode,
+      setMode,
       active,
+      commentMode,
+      exitCommentMode,
       toggle,
+      panelOpen,
+      panelHidden,
+      togglePanel,
       cancel,
       comments,
       error,
       add,
+      update,
       remove,
+      selection,
+      setSelection,
+      bufferBatch,
+      visual,
       selected,
       setSelected,
       inlineEdit,
+      inlineSelection,
+      setInlineSelection,
+      registerInlineStyle,
+      applyInlineStyle,
       startInlineEdit,
       stopInlineEdit,
       opsVersion,
@@ -1013,15 +1436,32 @@ export function InspectorProvider({
     }),
     [
       slideId,
+      pageIndex,
+      mode,
+      setMode,
       active,
+      commentMode,
+      exitCommentMode,
       toggle,
+      panelOpen,
+      panelHidden,
+      togglePanel,
       cancel,
       comments,
       error,
       add,
+      update,
       remove,
+      selection,
+      setSelection,
+      setSelected,
+      bufferBatch,
+      visual,
       selected,
       inlineEdit,
+      inlineSelection,
+      registerInlineStyle,
+      applyInlineStyle,
       startInlineEdit,
       stopInlineEdit,
       opsVersion,
@@ -1165,23 +1605,86 @@ function parsePercent(s: string, fallback: number): number {
   return fallback;
 }
 
-export function InspectToggleButton() {
+export function InspectModeSwitcher() {
   const t = useLocale();
-  const { active, toggle } = useInspector();
+  const { mode, setMode, comments } = useInspector();
   if (import.meta.env.PROD) return null;
+  const items: { value: InspectorMode; label: string; shortcut: string; icon: ReactNode }[] = [
+    { value: 'preview', label: t.inspector.previewMode, shortcut: 'V', icon: <Eye /> },
+    { value: 'edit', label: t.inspector.editMode, shortcut: 'E', icon: <Pencil /> },
+    { value: 'comment', label: t.inspector.commentMode, shortcut: 'C', icon: <MessageSquare /> },
+  ];
+  const index = Math.max(
+    0,
+    items.findIndex((item) => item.value === mode),
+  );
+  const pending = comments.length;
+  const accessibleName = (item: (typeof items)[number]) =>
+    item.value === 'comment' && pending > 0
+      ? `${item.label} · ${format(plural(pending, t.inspector.commentsCount), { count: pending })}`
+      : item.label;
+  return (
+    <ToggleGroup
+      size="sm"
+      spacing={1}
+      value={[mode]}
+      onValueChange={(value) => {
+        const next = value[0] as InspectorMode | undefined;
+        if (next && next !== mode) setMode(next);
+      }}
+      aria-label={`${t.inspector.previewMode} / ${t.inspector.editMode} / ${t.inspector.commentMode}`}
+      data-inspector-ui
+      className="relative isolate h-8 gap-0 rounded-lg border border-border/70 bg-muted/70 p-0.5"
+    >
+      <IconSwitcherIndicator index={index} />
+      {items.map((item) => (
+        <IconTooltip key={item.value} label={item.label} shortcut={item.shortcut}>
+          <TooltipTrigger
+            render={
+              <ToggleGroupItem
+                value={item.value}
+                aria-label={accessibleName(item)}
+                data-inspector-mode={item.value}
+                onClick={(event) => {
+                  if (event.detail > 0) event.currentTarget.blur();
+                }}
+                className="relative z-10 h-full w-8 rounded-md px-0 text-muted-foreground hover:bg-transparent data-pressed:bg-transparent data-pressed:text-foreground data-pressed:shadow-none"
+              />
+            }
+          >
+            {item.icon}
+            {item.value === 'comment' && pending > 0 && (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute -top-1.5 -right-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-brand px-1 font-mono text-[9px] font-semibold leading-none text-brand-foreground nums"
+              >
+                {pending > 99 ? '99+' : pending}
+              </span>
+            )}
+          </TooltipTrigger>
+        </IconTooltip>
+      ))}
+    </ToggleGroup>
+  );
+}
+
+export function InspectPanelButton() {
+  const t = useLocale();
+  const { active, panelOpen, panelHidden, togglePanel } = useInspector();
+  if (import.meta.env.PROD) return null;
+  const pressed = active && panelOpen && !panelHidden;
   return (
     <Button
       size="sm"
-      variant={active ? 'default' : 'ghost'}
-      onClick={toggle}
+      variant={pressed ? 'secondary' : 'ghost'}
+      onClick={togglePanel}
+      aria-pressed={pressed}
+      title={t.inspector.format}
+      aria-label={t.inspector.format}
       data-inspector-ui
-      title={t.inspector.inspect}
     >
-      <Crosshair className="size-3.5" />
-      <span className="hidden md:inline">{t.inspector.inspect}</span>
-      <kbd className="ml-1 hidden rounded-[3px] bg-foreground/10 px-1 font-mono text-[9.5px] tracking-[0.04em] md:inline">
-        I
-      </kbd>
+      <PanelRight className="size-3.5" />
+      <span className="hidden lg:inline">{t.inspector.format}</span>
     </Button>
   );
 }
