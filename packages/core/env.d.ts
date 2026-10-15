@@ -1,5 +1,6 @@
 // Ambient module declarations for assets imported from `slides/<id>/assets/`.
-// Mirrors Vite's default asset handling (default export = resolved URL).
+// Mirrors Vite's default asset handling (default export = resolved URL), plus
+// `?raw` imports (default export = file contents as a string).
 //
 // Consumers opt in via tsconfig:
 //
@@ -54,6 +55,11 @@ declare module '*.ttf' {
   export default src;
 }
 declare module '*.otf' {
+  const src: string;
+  export default src;
+}
+
+declare module '*?raw' {
   const src: string;
   export default src;
 }
