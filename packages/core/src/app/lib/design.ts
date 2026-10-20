@@ -31,6 +31,17 @@ export function designToCssVars(d: DesignSystem): Record<string, string> {
     '--osd-size-hero': `${d.typeScale.hero}px`,
     '--osd-size-body': `${d.typeScale.body}px`,
     '--osd-radius': `${d.radius}px`,
+    '--pele-bg': d.palette.bg,
+    '--pele-fg': d.palette.text,
+    '--pele-line': d.palette.text,
+    '--pele-accent': d.palette.accent,
+    '--pele-font': d.fonts.body,
+    '--pele-radius': `${d.radius}px`,
+    '--pele-border': `color-mix(in srgb, ${d.palette.text} 24%, transparent)`,
+    '--pele-surface': `color-mix(in srgb, ${d.palette.text} 8%, ${d.palette.bg})`,
+    '--pele-surface-alt': `color-mix(in srgb, ${d.palette.text} 16%, ${d.palette.bg})`,
+    '--pele-muted': `color-mix(in srgb, ${d.palette.text} 60%, transparent)`,
+    '--pele-series-1': d.palette.accent,
   };
 }
 

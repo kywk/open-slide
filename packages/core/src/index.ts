@@ -2,8 +2,12 @@ export type { ImagePlaceholderProps } from './app/components/image-placeholder.t
 export { ImagePlaceholder } from './app/components/image-placeholder.tsx';
 export type { InlineSvgProps } from './app/components/inline-svg.tsx';
 export { InlineSvg } from './app/components/inline-svg.tsx';
-export type { MermaidProps } from './app/components/mermaid.tsx';
-export { Mermaid } from './app/components/mermaid.tsx';
+export type {
+  MermaidConfigLegacy,
+  MermaidProps,
+  MermaidProps as PeleProps,
+} from './app/components/mermaid.tsx';
+export { Mermaid, Mermaid as Pele } from './app/components/mermaid.tsx';
 export type { MorphElementProps } from './app/components/morph-element.tsx';
 export { MorphElement } from './app/components/morph-element.tsx';
 export type {

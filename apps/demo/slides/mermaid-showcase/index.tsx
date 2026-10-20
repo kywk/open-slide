@@ -24,20 +24,6 @@ const rule = 'rgba(170, 180, 208, 0.18)';
 const mint = '#79f2c0';
 const warm = '#ffc27a';
 
-const mermaidConfig = {
-  theme: 'dark',
-  themeVariables: {
-    fontFamily: "'Inter', system-ui, sans-serif",
-    fontSize: '14px',
-    primaryColor: '#202b52',
-    primaryTextColor: '#f4f7ff',
-    primaryBorderColor: '#8b9cff',
-    lineColor: '#8b9cff',
-    secondaryColor: '#173e42',
-    tertiaryColor: '#3f2f27',
-  },
-} as const;
-
 const fill = {
   width: '100%',
   height: '100%',
@@ -370,7 +356,6 @@ const DiagramPage = ({
       >
         <Mermaid
           chart={chart}
-          config={mermaidConfig}
           style={{ width: '100%', height: 470, display: 'block' }}
           fallback={diagramFallback}
         />
@@ -464,7 +449,6 @@ const SequencePage: Page = () => (
       >
         <Mermaid
           chart={sequence}
-          config={mermaidConfig}
           style={{ width: '100%', height: 670, display: 'block' }}
           fallback={diagramFallback}
         />
@@ -514,7 +498,6 @@ const ArchitecturePage: Page = () => (
     >
       <Mermaid
         chart={architecture}
-        config={mermaidConfig}
         lightbox
         style={{ width: 1800, height: 920 }}
         fallback={diagramFallback}

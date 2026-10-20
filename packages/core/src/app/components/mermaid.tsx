@@ -1,37 +1,29 @@
-import type { MermaidConfig } from 'mermaid';
-import {
-  type CSSProperties,
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { render as renderPele } from 'pele';
+import type { CSSProperties, ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+
+export interface MermaidConfigLegacy {
+  theme?: string;
+  themeVariables?: Record<string, string | number>;
+  [key: string]: unknown;
+}
 
 export interface MermaidProps {
   chart: string;
   className?: string;
   style?: CSSProperties;
-  config?: MermaidConfig;
+  /** @deprecated Pele styles via CSS variables (`--pele-*`). Legacy themeVariables are mapped automatically. */
+  config?: MermaidConfigLegacy;
   fallback?: ReactNode;
   lightbox?: boolean;
 }
 
 type RenderedDiagram = {
   element: SVGSVGElement;
-  bindFunctions?: (element: Element) => void;
 };
 
-let mermaidPromise: Promise<typeof import('mermaid')['default']> | undefined;
 let renderSequence = 0;
-
-function loadMermaid() {
-  if (!mermaidPromise) {
-    mermaidPromise = import('mermaid').then(({ default: mermaid }) => mermaid);
-  }
-  return mermaidPromise;
-}
 
 function nextRenderId(): string {
   renderSequence += 1;
@@ -55,11 +47,14 @@ function isLightColor(color: string): boolean {
   return luminance > 0.5;
 }
 
-function normalizeSvg(svg: string): SVGSVGElement {
+function normalizeSvg(svg: string, id: string): SVGSVGElement {
   const template = document.createElement('template');
   template.innerHTML = svg.trim();
   const element = template.content.querySelector('svg');
-  if (!element) throw new Error('Mermaid did not return an SVG');
+  if (!element) throw new Error('Pele did not return an SVG');
+  if (!element.id) {
+    element.id = id;
+  }
   const origWidth = element.getAttribute('width') ?? '800';
   const origHeight = element.getAttribute('height') ?? '600';
   const w = Number.parseFloat(origWidth);
@@ -71,10 +66,140 @@ function normalizeSvg(svg: string): SVGSVGElement {
   element.setAttribute('height', '100%');
   element.setAttribute('preserveAspectRatio', 'xMidYMid meet');
   element.setAttribute('data-mermaid-svg', '');
+  element.setAttribute('data-pele-svg', '');
   element.style.display = 'block';
   element.style.maxWidth = '100%';
   element.style.maxHeight = '100%';
   return element;
+}
+
+const peleDefaults: CSSProperties = {
+  '--pele-bg': 'var(--osd-bg, #ffffff)',
+  '--pele-fg': 'var(--osd-text, #111827)',
+  '--pele-line': 'var(--osd-text, #111827)',
+  '--pele-accent': 'var(--osd-accent, #6366f1)',
+  '--pele-font': 'var(--osd-font-body, system-ui, sans-serif)',
+  '--pele-radius': 'var(--osd-radius, 8px)',
+  '--pele-border':
+    'var(--pele-border, color-mix(in srgb, var(--osd-text, #111827) 24%, transparent))',
+  '--pele-surface':
+    'var(--pele-surface, color-mix(in srgb, var(--osd-text, #111827) 8%, var(--osd-bg, #ffffff)))',
+  '--pele-surface-alt':
+    'var(--pele-surface-alt, color-mix(in srgb, var(--osd-text, #111827) 16%, var(--osd-bg, #ffffff)))',
+  '--pele-muted':
+    'var(--pele-muted, color-mix(in srgb, var(--osd-text, #111827) 60%, transparent))',
+  '--pele-series-1': 'var(--pele-series-1, var(--osd-accent, #6366f1))',
+} as CSSProperties;
+
+function legacyConfigToCssVars(config?: MermaidConfigLegacy): CSSProperties {
+  if (!config?.themeVariables) return {};
+  const tv = config.themeVariables;
+  const vars: Record<string, string> = {};
+  if (tv.primaryColor) vars['--pele-surface'] = String(tv.primaryColor);
+  if (tv.primaryTextColor) vars['--pele-fg'] = String(tv.primaryTextColor);
+  if (tv.primaryBorderColor) vars['--pele-border'] = String(tv.primaryBorderColor);
+  if (tv.lineColor) vars['--pele-line'] = String(tv.lineColor);
+  if (tv.secondaryColor) vars['--pele-surface-alt'] = String(tv.secondaryColor);
+  if (tv.tertiaryColor) vars['--pele-accent'] = String(tv.tertiaryColor);
+  if (tv.fontFamily) vars['--pele-font'] = String(tv.fontFamily);
+  return vars as CSSProperties;
+}
+
+function extractDiagramCssVars(el: HTMLElement | null): CSSProperties {
+  if (!el) return {};
+  const computed = getComputedStyle(el);
+  const canvas = el.closest('[data-osd-canvas]') as HTMLElement | null;
+  const canvasComputed = canvas ? getComputedStyle(canvas) : computed;
+  const vars: Record<string, string> = {};
+
+  const keys = [
+    '--osd-bg',
+    '--osd-text',
+    '--osd-accent',
+    '--osd-font-body',
+    '--osd-font-display',
+    '--osd-radius',
+    '--pele-bg',
+    '--pele-fg',
+    '--pele-line',
+    '--pele-accent',
+    '--pele-font',
+    '--pele-font-mono',
+    '--pele-radius',
+    '--pele-border',
+    '--pele-surface',
+    '--pele-surface-alt',
+    '--pele-muted',
+    '--pele-critical',
+    '--pele-series-1',
+    '--pele-series-2',
+    '--pele-series-3',
+    '--pele-series-4',
+    '--pele-series-5',
+    '--pele-series-6',
+    '--pele-series-7',
+    '--pele-series-8',
+  ];
+
+  for (const key of keys) {
+    const val =
+      computed.getPropertyValue(key).trim() || canvasComputed.getPropertyValue(key).trim();
+    if (val) {
+      vars[key] = val;
+    }
+  }
+
+  const bg =
+    vars['--osd-bg'] ||
+    vars['--pele-bg'] ||
+    canvasComputed.getPropertyValue('--osd-bg').trim() ||
+    '#ffffff';
+
+  const isLight = isLightColor(bg);
+
+  const fg =
+    vars['--osd-text'] ||
+    vars['--pele-fg'] ||
+    canvasComputed.getPropertyValue('--osd-text').trim() ||
+    (isLight ? '#111827' : '#f8fafc');
+
+  const accent =
+    vars['--osd-accent'] ||
+    vars['--pele-accent'] ||
+    canvasComputed.getPropertyValue('--osd-accent').trim() ||
+    '#6366f1';
+
+  const font =
+    vars['--osd-font-body'] ||
+    vars['--pele-font'] ||
+    canvasComputed.getPropertyValue('--osd-font-body').trim() ||
+    'system-ui, sans-serif';
+
+  const radius =
+    vars['--osd-radius'] ||
+    vars['--pele-radius'] ||
+    canvasComputed.getPropertyValue('--osd-radius').trim() ||
+    '8px';
+
+  vars['--osd-bg'] = bg;
+  vars['--osd-text'] = fg;
+  vars['--osd-accent'] = accent;
+  vars['--osd-font-body'] = font;
+  vars['--osd-radius'] = radius;
+
+  vars['--pele-bg'] = bg;
+  vars['--pele-fg'] = fg;
+  vars['--pele-line'] = vars['--pele-line'] || fg;
+  vars['--pele-accent'] = accent;
+  vars['--pele-font'] = font;
+  vars['--pele-radius'] = radius;
+  vars['--pele-border'] = vars['--pele-border'] || `color-mix(in srgb, ${fg} 24%, transparent)`;
+  vars['--pele-surface'] = vars['--pele-surface'] || `color-mix(in srgb, ${fg} 8%, ${bg})`;
+  vars['--pele-surface-alt'] = vars['--pele-surface-alt'] || `color-mix(in srgb, ${fg} 16%, ${bg})`;
+  vars['--pele-muted'] = vars['--pele-muted'] || `color-mix(in srgb, ${fg} 60%, transparent)`;
+  vars['--pele-series-1'] = vars['--pele-series-1'] || accent;
+
+  return vars as CSSProperties;
 }
 
 export function Mermaid({
@@ -92,15 +217,7 @@ export function Mermaid({
   const [error, setError] = useState<unknown>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [canvasBg, setCanvasBg] = useState('#ffffff');
-
-  const configRef = useRef(config);
-  const prevConfigKey = useRef('');
-  const currentConfigKey = JSON.stringify(config ?? null);
-  if (currentConfigKey !== prevConfigKey.current) {
-    configRef.current = config;
-    prevConfigKey.current = currentConfigKey;
-  }
-  const stableConfig = configRef.current;
+  const [lightboxTheme, setLightboxTheme] = useState<CSSProperties>({});
 
   useEffect(() => {
     let active = true;
@@ -108,41 +225,32 @@ export function Mermaid({
     setDiagram(null);
     setError(null);
 
-    loadMermaid()
-      .then((mermaid) => {
-        mermaid.initialize({
-          ...stableConfig,
-          startOnLoad: false,
-          securityLevel: stableConfig?.securityLevel ?? 'strict',
-        });
-        return mermaid.render(nextRenderId(), chart, wrapperRef.current ?? undefined);
-      })
-      .then(({ svg, bindFunctions }) => {
-        if (!active || version !== renderVersion.current) return;
-        setDiagram({ element: normalizeSvg(svg), bindFunctions });
-      })
-      .catch((cause: unknown) => {
-        if (!active || version !== renderVersion.current) return;
-        wrapperRef.current?.replaceChildren();
-        setError(cause);
-      });
+    try {
+      const { svg } = renderPele(chart);
+      if (!active || version !== renderVersion.current) return;
+      setDiagram({ element: normalizeSvg(svg, nextRenderId()) });
+    } catch (cause: unknown) {
+      if (!active || version !== renderVersion.current) return;
+      wrapperRef.current?.replaceChildren();
+      setError(cause);
+    }
 
     return () => {
       active = false;
     };
-  }, [chart, stableConfig]);
+  }, [chart]);
 
   useEffect(() => {
     if (!diagram || !diagramRef.current) return;
     const container = diagramRef.current;
     container.replaceChildren(diagram.element);
-    diagram.bindFunctions?.(container);
     return () => diagram.element.remove();
   }, [diagram]);
 
   const handleClick = useCallback(() => {
     if (lightbox && diagram) {
       setCanvasBg(resolveCanvasBg(wrapperRef.current));
+      setLightboxTheme(extractDiagramCssVars(wrapperRef.current));
       setLightboxOpen(true);
     }
   }, [lightbox, diagram]);
@@ -156,6 +264,8 @@ export function Mermaid({
         data-waitfor="svg"
         className={className}
         style={{
+          ...peleDefaults,
+          ...legacyConfigToCssVars(config),
           width: '100%',
           height: '100%',
           minWidth: 0,
@@ -198,6 +308,7 @@ export function Mermaid({
           chart={chart}
           config={config}
           canvasBg={canvasBg}
+          themeStyles={lightboxTheme}
           onClose={() => setLightboxOpen(false)}
         />
       )}
@@ -209,34 +320,28 @@ function MermaidLightbox({
   chart,
   config,
   canvasBg,
+  themeStyles,
   onClose,
 }: {
   chart: string;
-  config?: MermaidConfig;
+  config?: MermaidConfigLegacy;
   canvasBg: string;
+  themeStyles: CSSProperties;
   onClose: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const light = isLightColor(canvasBg);
 
   useEffect(() => {
-    loadMermaid()
-      .then((mermaid) => {
-        mermaid.initialize({
-          ...config,
-          startOnLoad: false,
-          securityLevel: config?.securityLevel ?? 'strict',
-        });
-        return mermaid.render(nextRenderId(), chart, containerRef.current ?? undefined);
-      })
-      .then(({ svg, bindFunctions }) => {
-        if (!containerRef.current) return;
-        const el = normalizeSvg(svg);
-        containerRef.current.replaceChildren(el);
-        bindFunctions?.(containerRef.current);
-      })
-      .catch(() => {});
-  }, [chart, config]);
+    try {
+      const { svg } = renderPele(chart);
+      if (!containerRef.current) return;
+      const el = normalizeSvg(svg, nextRenderId());
+      containerRef.current.replaceChildren(el);
+    } catch {
+      // ignore
+    }
+  }, [chart]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -285,11 +390,15 @@ function MermaidLightbox({
         ref={containerRef}
         role="presentation"
         style={{
+          ...themeStyles,
+          ...legacyConfigToCssVars(config),
           width: '100%',
           height: '100%',
           maxWidth: '96vw',
           maxHeight: '96vh',
           background: canvasBg,
+          color:
+            (themeStyles as Record<string, string>)['--pele-fg'] ?? (light ? '#111827' : '#f8fafc'),
           borderRadius: 12,
           padding: '1rem',
           boxShadow: light

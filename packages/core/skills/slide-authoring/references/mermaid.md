@@ -58,40 +58,38 @@ Props:
 | Prop | Type | Description |
 | --- | --- | --- |
 | `chart` | `string` | Mermaid DSL source (required) |
-| `style` | `CSSProperties` | Width/height of the diagram container |
-| `config` | `MermaidConfig` | Mermaid.js config (theme, themeVariables, etc.) |
+| `style` | `CSSProperties` | Width/height of the diagram container and optional `--pele-*` overrides |
+| `config` | `MermaidConfigLegacy` | Legacy Mermaid config (deprecated; `--pele-*` CSS variables are preferred) |
 | `fallback` | `ReactNode` | Shown when DSL is invalid |
 | `lightbox` | `boolean` | Click-to-zoom overlay (default: `true`) |
 
-The component renders asynchronously, catches invalid DSL, and participates in PDF/PPTX export readiness. Do not add `data-waitfor` yourself.
+The component renders via Pele (Obsidian's lightweight SVG engine), catches invalid DSL, and participates in PDF/PPTX export readiness. Do not add `data-waitfor` yourself.
 
-### Scaling behavior
+### Theme and CSS variables
 
-The rendered SVG always **scales to fit** the container specified by `style`. If the diagram's intrinsic size is larger than the container, it shrinks proportionally (via `viewBox` + `preserveAspectRatio`). The diagram will never overflow or be clipped — it simply appears smaller within the available space.
+Open-slide automatically maps your slide's design tokens (`--osd-*`) to Pele's CSS variables:
 
-Because of this, you do not need to worry about the diagram being too large. Focus on giving it enough space and keeping labels short so they remain readable at the scaled-down size.
+- `--pele-bg`: `var(--osd-bg)`
+- `--pele-fg`: `var(--osd-text)`
+- `--pele-line`: `var(--osd-text)`
+- `--pele-accent`: `var(--osd-accent)`
+- `--pele-font`: `var(--osd-font-body)`
+- `--pele-radius`: `var(--osd-radius)`
+- `--pele-border`, `--pele-surface`, `--pele-muted`: harmonized automatically
 
-### Lightbox
+Because Pele renders SVGs using CSS variables, **diagrams automatically match your slide's light/dark mode and Design panel adjustments in real-time without re-rendering**. You no longer need to write a `mermaidConfig` with hardcoded hex colors.
 
-Click-to-zoom is enabled by default (`lightbox` prop defaults to `true`). During presentation, the audience can click any diagram to expand it to near-fullscreen for closer inspection. Set `lightbox={false}` to disable the overlay on a specific diagram.
-
-Do not let the lightbox be an excuse for cramming too much into one diagram. If a diagram has so many nodes that it's unreadable even in lightbox, split it across multiple pages.
-
-### Config: font size
-
-When customizing `themeVariables.fontSize`, keep it between **12px and 16px**. Larger values cause node labels to overflow their boxes at render time. Prefer shorter labels over larger fonts.
+If you want to customize colors on a specific diagram, pass `--pele-*` variables directly to `style`:
 
 ```tsx
-const mermaidConfig = {
-  theme: 'dark',
-  themeVariables: {
-    fontSize: '14px',
-    primaryColor: '#202b52',
-    primaryTextColor: '#f4f7ff',
-    primaryBorderColor: '#8b9cff',
-    lineColor: '#8b9cff',
-  },
-} as const;
+<Mermaid
+  chart={pipeline}
+  style={{
+    width: 1680,
+    height: 720,
+    '--pele-accent': '#f43f5e',
+  }}
+/>
 ```
 
 ## Layout on the 1920×1080 canvas
@@ -187,7 +185,7 @@ One clear diagram per page is always better than one dense diagram that requires
 - Translating a list into connected nodes when the source never states those connections.
 - Adding actors, states, or arrows to make the composition symmetrical.
 - Inventing nodes or dependencies to make a diagram look richer.
-- Setting `fontSize` above 16px in themeVariables — causes label overflow.
-- Using CSS variables (`var(--osd-accent)`) in `themeVariables` — Mermaid renders SVG outside the DOM context, so CSS variables won't resolve. Use the actual color value (e.g. the `accent` const or a hex literal).
+- Passing hardcoded hex colors in `themeVariables` when `--pele-*` / `--osd-*` CSS variables inherit naturally.
+- Embedding raw HTML tags or `<foreignObject>` that break SVG portability.
 - Node labels longer than ~5 words without testing visual fit.
 - Relying on lightbox to make an unreadable diagram acceptable — if you can't get the gist at slide scale, split it.

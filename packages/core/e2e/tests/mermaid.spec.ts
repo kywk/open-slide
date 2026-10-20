@@ -39,5 +39,13 @@ test.describe('Mermaid primitive', () => {
     await enterPlayMode(page);
     await expect(page.locator('svg[data-mermaid-svg]')).toHaveCount(2);
     await expect(page.getByTestId('custom-mermaid-fallback')).toBeVisible();
+
+    const expandButton = page.getByRole('button', { name: 'Expand diagram' }).first();
+    await expandButton.click();
+    const lightboxDialog = page.getByRole('dialog', { name: 'Mermaid diagram expanded' });
+    await expect(lightboxDialog).toBeVisible();
+    await expect(lightboxDialog.locator('svg[data-mermaid-svg]')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(lightboxDialog).toHaveCount(0);
   });
 });
