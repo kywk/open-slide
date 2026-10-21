@@ -32,7 +32,9 @@ jobs:
           cache: pnpm
 
       - name: Upgrade npm for OIDC trusted publishing
-        run: npm install -g npm@12
+        # npm 11 is the last major that still accepts the --no-git-checks flag
+        # that pnpm forwards to `npm publish`; npm 12 rejects it.
+        run: npm install -g npm@11
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
