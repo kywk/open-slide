@@ -1,5 +1,11 @@
 # @kywk/open-slide-cli
 
+## 2.1.0
+
+### Minor Changes
+
+- [`919d919`](https://github.com/kywk/open-slide/commit/919d919fca78e9d67dbb3ebc14b1c72e2cb7b1c1) Thanks [@kywk](https://github.com/kywk)! - Publish under the @kywk scope — the packages are now `@kywk/open-slide-core` and `@kywk/open-slide-cli`.
+
 > Versions up to 2.0.0 were published as `@open-slide/cli` by upstream.
 
 ## 2.0.0
