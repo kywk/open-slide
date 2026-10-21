@@ -132,7 +132,7 @@ export async function createViteConfig(opts: CreateViteConfigOptions): Promise<I
         'class-variance-authority',
         'emoji-picker-react',
       ],
-      // The app source ships inside node_modules/@open-slide/core/src/app, so
+      // The app source ships inside node_modules/@kywk/open-slide-core/src/app, so
       // Vite's dep scanner traverses it as if it were a third-party dep and
       // tries to bundle our virtual imports. Mark them external.
       rolldownOptions: {

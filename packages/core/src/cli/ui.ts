@@ -1,10 +1,8 @@
-import { existsSync, readFileSync } from 'node:fs';
-import path from 'node:path';
 import * as readline from 'node:readline';
-import { fileURLToPath } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
 import chalk from 'chalk';
 import type { LogErrorOptions, Logger, LogOptions, LogType, ResolvedServerUrls } from 'vite';
+import { ownPackage } from '../package-info.ts';
 
 // Legacy Windows consoles render box-drawing glyphs as garbage; Windows
 // Terminal and VS Code's terminal are fine.
@@ -19,19 +17,8 @@ export const glyph = {
   cross: UNICODE ? '✖' : 'x',
 } as const;
 
-// Bundled chunks land at unpredictable depths under dist/, so walk up to the
-// package root instead of resolving a fixed relative path.
 export function readVersion(): string {
-  let dir = path.dirname(fileURLToPath(import.meta.url));
-  while (dir !== path.dirname(dir)) {
-    const pkgPath = path.join(dir, 'package.json');
-    if (existsSync(pkgPath)) {
-      const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { name?: string; version?: string };
-      if (pkg.name === '@open-slide/core' && pkg.version) return pkg.version;
-    }
-    dir = path.dirname(dir);
-  }
-  return '0.0.0';
+  return ownPackage().version;
 }
 
 export function brand(): string {

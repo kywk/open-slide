@@ -55,7 +55,7 @@ For a representation transformation, the inspector target is a **semantic anchor
 3. If the user explicitly names a diagram type, honor it unless that type cannot faithfully represent the information.
 4. If the user says only “make this a diagram” or “visualize this,” read `slide-authoring/references/mermaid.md` and infer the most suitable type from the source semantics.
 5. Generate Mermaid DSL using only the existing actors, relationships, steps, states, dependencies, and directions. Shorten labels if needed, but do not invent facts.
-6. Replace the existing representation with `<Mermaid>` and add its `@open-slide/core` import if needed.
+6. Replace the existing representation with `<Mermaid>` and add its `@kywk/open-slide-core` import if needed.
 7. Preserve the surrounding page title, layout, and design conventions, then remove the processed marker normally.
 
 Example:

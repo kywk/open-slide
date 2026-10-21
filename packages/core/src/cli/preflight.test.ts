@@ -3,7 +3,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { stripVTControlCharacters } from 'node:util';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { ownPackageName } from '../package-info.ts';
 import { findViteDeclaration, findViteMismatch, formatViteMismatch } from './preflight.ts';
+
+const CORE = ownPackageName();
 
 let root: string;
 
@@ -14,14 +17,14 @@ function addPackage(rel: string, version: string): void {
 }
 
 function coreDir(): string {
-  const dir = path.join(root, 'node_modules', '@open-slide', 'core', 'dist', 'cli');
+  const dir = path.join(root, 'node_modules', ...CORE.split('/'), 'dist', 'cli');
   mkdirSync(dir, { recursive: true });
   return dir;
 }
 
 beforeEach(() => {
   root = mkdtempSync(path.join(os.tmpdir(), 'open-slide-preflight-'));
-  addPackage('@open-slide/core', '2.0.0');
+  addPackage(CORE, '2.0.0');
 });
 
 afterEach(() => {
@@ -32,7 +35,7 @@ describe('findViteMismatch', () => {
   it('flags a hoisted plugin that resolves a different vite than core', () => {
     addPackage('vite', '5.4.21');
     addPackage('@vitejs/plugin-react', '6.1.1');
-    addPackage('@open-slide/core/node_modules/vite', '8.2.2');
+    addPackage(`${CORE}/node_modules/vite`, '8.2.2');
 
     const mismatch = findViteMismatch(coreDir());
     expect(mismatch).not.toBeNull();
@@ -43,8 +46,8 @@ describe('findViteMismatch', () => {
 
   it('passes when the plugin is nested next to core vite', () => {
     addPackage('vite', '5.4.21');
-    addPackage('@open-slide/core/node_modules/vite', '8.2.2');
-    addPackage('@open-slide/core/node_modules/@vitejs/plugin-react', '6.1.1');
+    addPackage(`${CORE}/node_modules/vite`, '8.2.2');
+    addPackage(`${CORE}/node_modules/@vitejs/plugin-react`, '6.1.1');
 
     expect(findViteMismatch(coreDir())).toBeNull();
   });
@@ -60,7 +63,7 @@ describe('findViteMismatch', () => {
   it('passes when two copies of the same vite version coexist', () => {
     addPackage('vite', '8.2.2');
     addPackage('@vitejs/plugin-react', '6.1.1');
-    addPackage('@open-slide/core/node_modules/vite', '8.2.2');
+    addPackage(`${CORE}/node_modules/vite`, '8.2.2');
 
     expect(findViteMismatch(coreDir())).toBeNull();
   });
@@ -68,8 +71,8 @@ describe('findViteMismatch', () => {
   it('checks every consumer, not just the first', () => {
     addPackage('vite', '5.4.21');
     addPackage('@tailwindcss/vite', '4.3.3');
-    addPackage('@open-slide/core/node_modules/vite', '8.2.2');
-    addPackage('@open-slide/core/node_modules/@vitejs/plugin-react', '6.1.1');
+    addPackage(`${CORE}/node_modules/vite`, '8.2.2');
+    addPackage(`${CORE}/node_modules/@vitejs/plugin-react`, '6.1.1');
 
     expect(findViteMismatch(coreDir())?.consumer).toBe('@tailwindcss/vite');
   });
@@ -97,7 +100,7 @@ describe('findViteDeclaration', () => {
 
   it('finds vite in a parent workspace root', () => {
     writeManifest('.', { dependencies: { vite: '^5.0.0' } });
-    const dir = writeManifest('packages/deck', { dependencies: { '@open-slide/core': '2.0.0' } });
+    const dir = writeManifest('packages/deck', { dependencies: { [CORE]: '2.0.0' } });
     expect(findViteDeclaration(dir)?.file).toBe(path.join(root, 'package.json'));
   });
 
@@ -142,7 +145,7 @@ describe('findViteDeclaration', () => {
   });
 
   it('returns null when nothing lists vite', () => {
-    const dir = writeManifest('app', { dependencies: { '@open-slide/core': '2.0.0' } });
+    const dir = writeManifest('app', { dependencies: { [CORE]: '2.0.0' } });
     expect(findViteDeclaration(dir)).toBeNull();
   });
 });
@@ -151,7 +154,7 @@ describe('formatViteMismatch', () => {
   function mismatch() {
     addPackage('vite', '5.4.21');
     addPackage('@vitejs/plugin-react', '6.1.1');
-    addPackage('@open-slide/core/node_modules/vite', '8.2.2');
+    addPackage(`${CORE}/node_modules/vite`, '8.2.2');
     const found = findViteMismatch(coreDir());
     if (!found) throw new Error('expected a mismatch');
     return found;

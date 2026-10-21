@@ -1,4 +1,6 @@
-# @open-slide/cli
+# @kywk/open-slide-cli
+
+> Versions up to 2.0.0 were published as `@open-slide/cli` by upstream.
 
 ## 2.0.0
 

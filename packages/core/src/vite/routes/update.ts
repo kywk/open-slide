@@ -3,16 +3,16 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { ViteDevServer } from 'vite';
 import { validateMutationRequest } from '../../http/request-guard.ts';
+import { ownPackageName } from '../../package-info.ts';
 import { type ApiContext, json } from './context.ts';
 
 // GET /__update-check  → { current, latest, outdated }
-//   Compares the running @open-slide/core version against the npm `latest`
-//   dist-tag. Network/parse failures degrade to { latest: null, outdated: false }.
+//   Compares the running core version against the npm `latest` dist-tag.
+//   Network/parse failures degrade to { latest: null, outdated: false }.
 // POST /__update-package → { packageManager, command, latest, message }
-//   Installs @open-slide/core@latest with the detected package manager, then
-//   runs `open-slide sync:skills`.
+//   Installs core@latest with the detected package manager, then runs
+//   `open-slide sync:skills`.
 
-const PKG = '@open-slide/core';
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const COMMAND_TIMEOUT_MS = 300_000;
 
@@ -49,7 +49,7 @@ function isOutdated(current: string, latest: string): boolean {
 async function fetchLatest(now: number): Promise<string | null> {
   if (cache && now - cache.at < CACHE_TTL_MS) return cache.latest;
   try {
-    const res = await fetch(`https://registry.npmjs.org/${PKG}/latest`, {
+    const res = await fetch(`https://registry.npmjs.org/${ownPackageName()}/latest`, {
       signal: AbortSignal.timeout(3000),
       headers: { accept: 'application/json' },
     });
@@ -100,15 +100,16 @@ export async function detectPackageManager(cwd: string): Promise<PackageManager>
 }
 
 export function updateCommandFor(packageManager: PackageManager): CommandSpec {
+  const spec = `${ownPackageName()}@latest`;
   switch (packageManager) {
     case 'pnpm':
-      return { cmd: 'pnpm', args: ['add', `${PKG}@latest`] };
+      return { cmd: 'pnpm', args: ['add', spec] };
     case 'yarn':
-      return { cmd: 'yarn', args: ['add', `${PKG}@latest`] };
+      return { cmd: 'yarn', args: ['add', spec] };
     case 'bun':
-      return { cmd: 'bun', args: ['add', `${PKG}@latest`] };
+      return { cmd: 'bun', args: ['add', spec] };
     case 'npm':
-      return { cmd: 'npm', args: ['install', `${PKG}@latest`] };
+      return { cmd: 'npm', args: ['install', spec] };
   }
 }
 
@@ -169,7 +170,7 @@ async function updatePackage(ctx: ApiContext): Promise<UpdateResult> {
     packageManager,
     command: `${formatCommand(updateCommand)} && open-slide sync:skills`,
     latest,
-    message: 'Updated @open-slide/core and synced skills.',
+    message: `Updated ${ownPackageName()} and synced skills.`,
   };
 }
 

@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { cp, lstat, mkdir, readdir, readFile, readlink, rm, symlink } from 'node:fs/promises';
 import path from 'node:path';
 import chalk from 'chalk';
+import { ownPackageName } from '../package-info.ts';
 
 export interface SyncSkillsOptions {
   dryRun?: boolean;
@@ -49,7 +50,7 @@ export async function syncSkills(skillsDir: string, opts: SyncSkillsOptions = {}
 
   if (!existsSync(skillsDir)) {
     throw new Error(
-      `Built-in skills directory missing at ${skillsDir}. The @open-slide/core package may be corrupt — try reinstalling.`,
+      `Built-in skills directory missing at ${skillsDir}. The ${ownPackageName()} package may be corrupt — try reinstalling.`,
     );
   }
 

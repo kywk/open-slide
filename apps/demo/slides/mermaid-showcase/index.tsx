@@ -4,7 +4,7 @@ import {
   type Page,
   type SlideMeta,
   useSlidePageNumber,
-} from '@open-slide/core';
+} from '@kywk/open-slide-core';
 import type { ReactNode } from 'react';
 
 export const design: DesignSystem = {

@@ -1,4 +1,4 @@
-import type { Page } from '@open-slide/core';
+import type { Page } from '@kywk/open-slide-core';
 
 const base = {
   width: '100%',

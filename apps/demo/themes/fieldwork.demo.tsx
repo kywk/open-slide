@@ -3,7 +3,7 @@ import {
   type SlideTransition,
   useIsActivePage,
   useSlidePageNumber,
-} from '@open-slide/core';
+} from '@kywk/open-slide-core';
 import { type CSSProperties, type ReactNode, useId } from 'react';
 
 const FONT_HREF =

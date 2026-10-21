@@ -62,7 +62,7 @@ function scanAndMigrate(filePath) {
             .replace(/^\s*,\s*|\s*,\s*$/g, '')
             .trim();
           if (!rest) return '';
-          return `import type { ${rest} } from '@open-slide/core';\n`;
+          return `import type { ${rest} } from '@kywk/open-slide-core';\n`;
         },
       );
     }

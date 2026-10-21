@@ -72,7 +72,7 @@ import {
   type Page,
   useIsActivePage,
   useSlidePageNumber,
-} from '@open-slide/core';
+} from '@kywk/open-slide-core';
 import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
 
 export const design: DesignSystem = {
@@ -825,7 +825,7 @@ if (typeof document !== 'undefined') {
 Optional page transition:
 
 ```tsx
-import type { SlideTransition } from '@open-slide/core';
+import type { SlideTransition } from '@kywk/open-slide-core';
 
 export const transition: SlideTransition = {
   duration: 240,

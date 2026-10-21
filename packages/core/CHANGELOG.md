@@ -1,4 +1,6 @@
-# @open-slide/core
+# @kywk/open-slide-core
+
+> Versions up to 2.2.0 were published as `@open-slide/core` by upstream.
 
 ## 2.2.0
 

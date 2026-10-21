@@ -8,7 +8,7 @@ import {
   Steps,
   useIsActivePage,
   useSlidePageNumber,
-} from '@open-slide/core';
+} from '@kywk/open-slide-core';
 import type { CSSProperties, ReactNode } from 'react';
 
 export const design: DesignSystem = {
@@ -3858,7 +3858,7 @@ const Cover: Page = () => {
           Press <Icon name="arrow-right" size={13} stroke={2.2} /> to begin
         </Pill>
         <Pill>
-          <span style={{ color: 'var(--osd-accent)' }}>$</span>npx @open-slide/cli init
+          <span style={{ color: 'var(--osd-accent)' }}>$</span>npx @kywk/open-slide-cli init
         </Pill>
       </div>
       <Footer />
@@ -3938,7 +3938,7 @@ const FilePage: Page = () => (
           <Line delay={0.5}>
             <K>import type</K> <P>{'{ '}</P>
             <Tag>Page</Tag>
-            <P>{' }'}</P> <K>from</K> <Str>'@open-slide/core'</Str>
+            <P>{' }'}</P> <K>from</K> <Str>'@kywk/open-slide-core'</Str>
             <P>;</P>
           </Line>
           <Line delay={0.55} />
@@ -4046,7 +4046,7 @@ const InitPage: Page = () => (
         <Line delay={0} className="gs">
           <Prompt />
           <Typed
-            text="npx @open-slide/cli init my-deck"
+            text="npx @kywk/open-slide-cli init my-deck"
             delay={0.6}
             color={ink.text}
             caret={false}
@@ -5470,7 +5470,7 @@ const RecapPage: Page = () => {
       >
         <Steps>
           <Step>
-            <RecapStep n="01" title="Init" caption="npx @open-slide/cli init" delay={0.25} />
+            <RecapStep n="01" title="Init" caption="npx @kywk/open-slide-cli init" delay={0.25} />
           </Step>
           <Step>
             <RecapStep n="02" title="Prompt" caption="/create-slide" delay={0.32} />

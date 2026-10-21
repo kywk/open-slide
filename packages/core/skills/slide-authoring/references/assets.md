@@ -53,7 +53,7 @@ Never hand-write a raw `<svg>` element in slide JSX for content — you lose the
 When a page genuinely needs a real image **the user has to provide** — a product screenshot, a team photo, a chart from their data — leave a typed placeholder instead of inventing a stand-in:
 
 ```tsx
-import { ImagePlaceholder } from '@open-slide/core';
+import { ImagePlaceholder } from '@kywk/open-slide-core';
 
 <ImagePlaceholder hint="Product hero screenshot" width={1280} height={720} />
 ```

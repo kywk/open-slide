@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { ownPackageName } from '../../package-info.ts';
 import { detectPackageManager, updateCommandFor } from './update.ts';
 
 async function tempProject(): Promise<string> {
@@ -54,21 +55,22 @@ describe('update routes helpers', () => {
   });
 
   it('uses fixed update commands for each package manager', () => {
+    const spec = `${ownPackageName()}@latest`;
     expect(updateCommandFor('pnpm')).toEqual({
       cmd: 'pnpm',
-      args: ['add', '@open-slide/core@latest'],
+      args: ['add', spec],
     });
     expect(updateCommandFor('yarn')).toEqual({
       cmd: 'yarn',
-      args: ['add', '@open-slide/core@latest'],
+      args: ['add', spec],
     });
     expect(updateCommandFor('bun')).toEqual({
       cmd: 'bun',
-      args: ['add', '@open-slide/core@latest'],
+      args: ['add', spec],
     });
     expect(updateCommandFor('npm')).toEqual({
       cmd: 'npm',
-      args: ['install', '@open-slide/core@latest'],
+      args: ['install', spec],
     });
   });
 });

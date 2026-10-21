@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { type DesignSystem, defaultDesign } from '../app/lib/design.ts';
+import { ownPackageName } from '../package-info.ts';
 import {
   applyDesignWrite,
   mergeDesign,
@@ -7,7 +8,9 @@ import {
   serializeDesign,
 } from './design-plugin.ts';
 
-const SLIDE_WITH_DESIGN = `import type { DesignSystem, Page } from '@open-slide/core';
+const CORE = ownPackageName();
+
+const SLIDE_WITH_DESIGN = `import type { DesignSystem, Page } from '${CORE}';
 
 const design: DesignSystem = {
   palette: {
@@ -32,7 +35,7 @@ const Cover: Page = () => (
 export default [Cover];
 `;
 
-const SLIDE_WITHOUT_DESIGN = `import type { Page } from '@open-slide/core';
+const SLIDE_WITHOUT_DESIGN = `import type { Page } from '${CORE}';
 
 const Cover: Page = () => (
   <div style={{ background: '#fff', color: '#000' }}>Hi</div>
@@ -99,7 +102,7 @@ describe('applyDesignWrite — slide with existing design', () => {
     const r = applyDesignWrite(SLIDE_WITH_DESIGN, next);
     if (!r.ok) throw new Error(r.error);
     expect(r.created).toBe(false);
-    expect(r.source).toContain("import type { DesignSystem, Page } from '@open-slide/core'");
+    expect(r.source).toContain(`import type { DesignSystem, Page } from '${CORE}'`);
     expect(r.source).toContain('const design: DesignSystem =');
     expect(r.source).toContain("accent: '#ff0000'");
     expect(r.source).not.toContain("'#6d4cff'");
@@ -124,7 +127,7 @@ describe('applyDesignWrite — slide without design', () => {
     if (!r.ok) throw new Error(r.error);
     expect(r.created).toBe(true);
     expect(r.source).toContain('const design: DesignSystem =');
-    expect(r.source).toContain("import type { Page, DesignSystem } from '@open-slide/core'");
+    expect(r.source).toContain(`import type { Page, DesignSystem } from '${CORE}'`);
     expect(r.source).toContain('const Cover: Page = ()');
     expect(r.source).toContain('export default [Cover];');
     const parsed = parseSlideDesign(r.source);
@@ -133,33 +136,33 @@ describe('applyDesignWrite — slide without design', () => {
   });
 
   it('adds a plain specifier to a type-only core import', () => {
-    const slide = `import type { Page } from '@open-slide/core';\n\nexport default [];\n`;
+    const slide = `import type { Page } from '${CORE}';\n\nexport default [];\n`;
     const r = applyDesignWrite(slide, defaultDesign);
     if (!r.ok) throw new Error(r.error);
-    expect(r.source).toContain("import type { Page, DesignSystem } from '@open-slide/core'");
+    expect(r.source).toContain(`import type { Page, DesignSystem } from '${CORE}'`);
   });
 
   it('adds a type-modified specifier to a value core import', () => {
-    const slide = `import { Step } from '@open-slide/core';\n\nexport default [];\n`;
+    const slide = `import { Step } from '${CORE}';\n\nexport default [];\n`;
     const r = applyDesignWrite(slide, defaultDesign);
     if (!r.ok) throw new Error(r.error);
-    expect(r.source).toContain("import { Step, type DesignSystem } from '@open-slide/core'");
+    expect(r.source).toContain(`import { Step, type DesignSystem } from '${CORE}'`);
   });
 
   it('adds its own type import when the core import has no named list', () => {
-    const slide = `import * as Core from '@open-slide/core';\n\nexport default [];\n`;
+    const slide = `import * as Core from '${CORE}';\n\nexport default [];\n`;
     const r = applyDesignWrite(slide, defaultDesign);
     if (!r.ok) throw new Error(r.error);
-    expect(r.source).toContain("import * as Core from '@open-slide/core'");
-    expect(r.source).toContain("import type { DesignSystem } from '@open-slide/core'");
+    expect(r.source).toContain(`import * as Core from '${CORE}'`);
+    expect(r.source).toContain(`import type { DesignSystem } from '${CORE}'`);
     expect(r.source).toContain('const design: DesignSystem =');
   });
 
-  it('adds a fresh @open-slide/core type import when none exists', () => {
+  it('adds a fresh @kywk/open-slide-core type import when none exists', () => {
     const slide = `const Cover = () => <div>Hi</div>;\nexport default [Cover];\n`;
     const r = applyDesignWrite(slide, defaultDesign);
     if (!r.ok) throw new Error(r.error);
-    expect(r.source).toContain("import type { DesignSystem } from '@open-slide/core'");
+    expect(r.source).toContain(`import type { DesignSystem } from '${CORE}'`);
     expect(r.source).toContain('const design: DesignSystem =');
     const parsed = parseSlideDesign(r.source);
     if (!parsed.ok) throw new Error('inserted design is not parseable');

@@ -1,14 +1,14 @@
-# @open-slide/core
+# @kywk/open-slide-core
 
 Runtime and CLI for [open-slide](https://github.com/open-slide/open-slide) — a React-based slide framework where you write slides and the framework handles the Vite/React stack, layout, navigation, hot reload, and fullscreen play mode.
 
 ## Install
 
 ```bash
-pnpm add @open-slide/core
+pnpm add @kywk/open-slide-core
 ```
 
-Most users get this installed automatically by running `npx @open-slide/cli init`. Use this package directly only if you're wiring up an existing workspace by hand.
+Most users get this installed automatically by running `npx @kywk/open-slide-cli init`. Use this package directly only if you're wiring up an existing workspace by hand.
 
 ## What's inside
 
@@ -31,7 +31,7 @@ Once installed, the `open-slide` bin is available in the workspace:
 Create `open-slide.config.ts` in the workspace root (all fields optional):
 
 ```ts
-import type { OpenSlideConfig } from '@open-slide/core';
+import type { OpenSlideConfig } from '@kywk/open-slide-core';
 
 const openSlideConfig: OpenSlideConfig = {
   slidesDir: 'slides',
@@ -58,7 +58,7 @@ The value is passed straight to Vite's `base` and to React Router's `basename`, 
 Slides live under `slides/<kebab-case-id>/index.tsx` and default-export an array of `Page` components:
 
 ```tsx
-import type { Page } from '@open-slide/core';
+import type { Page } from '@kywk/open-slide-core';
 
 const Cover: Page = () => (
   <div className="flex h-full w-full items-center justify-center">
@@ -85,7 +85,7 @@ import {
   type SlideModule,
   type SlideTransition,
   type OpenSlideConfig,
-} from '@open-slide/core';
+} from '@kywk/open-slide-core';
 ```
 
 Render relational or sequential information directly in a TSX page:
@@ -100,7 +100,7 @@ Lightbox is enabled by default — click any diagram to expand it near-fullscree
 The Vite plugin is exposed under a subpath for advanced setups:
 
 ```ts
-import { createViteConfig } from '@open-slide/core/vite';
+import { createViteConfig } from '@kywk/open-slide-core/vite';
 ```
 
 ## License

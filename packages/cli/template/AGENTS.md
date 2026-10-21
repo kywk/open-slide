@@ -23,10 +23,10 @@ Keep this file short: hard rules only. All deeper guidance lives in the skills a
 
 ## Updating skills
 
-The skills above are managed by `@open-slide/core`. Do not edit them in place. To pull the latest versions:
+The skills above are managed by `@kywk/open-slide-core`. Do not edit them in place. To pull the latest versions:
 
 ```
-pnpm up @open-slide/core
+pnpm up @kywk/open-slide-core
 pnpm sync:skills
 ```
 

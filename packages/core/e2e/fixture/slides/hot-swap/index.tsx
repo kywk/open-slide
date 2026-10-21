@@ -1,4 +1,4 @@
-import type { Page, SlideMeta } from '@open-slide/core';
+import type { Page, SlideMeta } from '@kywk/open-slide-core';
 
 export const meta: SlideMeta = {
   title: 'Hot Deck',

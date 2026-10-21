@@ -4,7 +4,7 @@
 //
 // Consumers opt in via tsconfig:
 //
-//   { "compilerOptions": { "types": ["@open-slide/core/env"] } }
+//   { "compilerOptions": { "types": ["@kywk/open-slide-core/env"] } }
 
 declare module '*.svg' {
   const src: string;

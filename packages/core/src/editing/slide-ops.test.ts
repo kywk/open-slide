@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { ownPackageName } from '../package-info.ts';
 import {
   duplicateNotesElementInSource,
   duplicatePageInDefaultExportInSource,
@@ -13,6 +14,8 @@ import {
   updateMetaTitleInSource,
   validateSlideName,
 } from './slide-ops.ts';
+
+const CORE = ownPackageName();
 
 async function withSlidesRoot<T>(fn: (root: string) => Promise<T>): Promise<T> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'open-slide-test-'));
@@ -178,7 +181,7 @@ describe('updateMetaTitleInSource', () => {
 });
 
 describe('reorderDefaultExportPagesInSource', () => {
-  const withSatisfies = `import type { Page } from '@open-slide/core';
+  const withSatisfies = `import type { Page } from '${CORE}';
 const A = () => null;
 const B = () => null;
 const C = () => null;
@@ -201,7 +204,7 @@ export default [A, B, C];
     expect(out).not.toBeNull();
     expect(out).toContain('export default [\n  C,\n  A,\n  B,\n] satisfies Page[];');
     // surrounding source untouched
-    expect(out).toContain("import type { Page } from '@open-slide/core';");
+    expect(out).toContain(`import type { Page } from '${CORE}';`);
     expect(out).toContain("export const meta = { title: 't' };");
   });
 
@@ -337,7 +340,7 @@ describe('reorderNotesArrayInSource', () => {
 });
 
 describe('removePageFromDefaultExportInSource', () => {
-  const multiline = `import type { Page } from '@open-slide/core';
+  const multiline = `import type { Page } from '${CORE}';
 const A = () => null;
 const B = () => null;
 const C = () => null;
@@ -393,7 +396,7 @@ export default [A, B, C];
 });
 
 describe('duplicatePageInDefaultExportInSource', () => {
-  const multiline = `import type { Page } from '@open-slide/core';
+  const multiline = `import type { Page } from '${CORE}';
 const A = () => null;
 const B = () => null;
 const C = () => null;

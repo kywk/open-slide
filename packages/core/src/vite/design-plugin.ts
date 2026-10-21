@@ -6,6 +6,7 @@ import { type AstNode, parseSource, tryParse } from '../editing/babel-walk.ts';
 import { jsString } from '../editing/edit-ops.ts';
 import { resolveSlideEntry } from '../editing/slide-ops.ts';
 import { validateMutationRequest } from '../http/request-guard.ts';
+import { ownPackageName } from '../package-info.ts';
 import { json, readBody } from './routes/context.ts';
 
 // Reading tolerates a slide mid-edit; writing splices by AST offset, so a
@@ -244,7 +245,7 @@ function addDesignSystemImport(
   source: string,
   imports: ImportInfo[],
 ): { source: string; offsetShift: number } {
-  const stmt = `import type { DesignSystem } from '@open-slide/core';\n`;
+  const stmt = `import type { DesignSystem } from '${ownPackageName()}';\n`;
   if (imports.length > 0) {
     const last = imports[imports.length - 1];
     const insertAt = last.node.end;
@@ -261,7 +262,7 @@ function ensureDesignSystemImport(
   ast: AstNode,
 ): { source: string; offsetShift: number } {
   const imports = findImports(ast);
-  const coreImport = imports.find((imp) => imp.source === '@open-slide/core');
+  const coreImport = imports.find((imp) => imp.source === ownPackageName());
   if (!coreImport) return addDesignSystemImport(source, imports);
 
   const hasDesignSystem = coreImport.specifiers.some((spec) => {

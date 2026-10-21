@@ -60,12 +60,12 @@ diagram-design excels at these — use it when available:
 
 ## Rule: every inline SVG goes through `<InlineSvg>`
 
-Any SVG you want rendered *inside* a slide — regardless of where it came from (diagram-design output, a hand-written `<svg>`, or an imported `.svg` file) — must be rendered with `<InlineSvg svg={...} />` from `@open-slide/core`, never as a raw `<svg>` element in JSX.
+Any SVG you want rendered *inside* a slide — regardless of where it came from (diagram-design output, a hand-written `<svg>`, or an imported `.svg` file) — must be rendered with `<InlineSvg svg={...} />` from `@kywk/open-slide-core`, never as a raw `<svg>` element in JSX.
 
 `<InlineSvg>` handles viewBox normalization, responsive sizing, `alt`/`aria-label`, and click-to-expand **lightbox** (enabled by default, matching `<Mermaid>`). A raw `<svg>` element gets none of this.
 
 ```tsx
-import { InlineSvg } from '@open-slide/core';
+import { InlineSvg } from '@kywk/open-slide-core';
 import chart from './assets/chart.svg?raw'; // ?raw → import as string
 
 <InlineSvg svg={chart} alt="…" lightbox />
@@ -90,7 +90,7 @@ import chart from './assets/chart.svg?raw'; // ?raw → import as string
 5. **Embed in the slide** — import and render with `<InlineSvg>`:
 
 ```tsx
-import { InlineSvg } from '@open-slide/core';
+import { InlineSvg } from '@kywk/open-slide-core';
 import architectureSvg from './assets/system-arch.svg?raw';
 
 const ArchPage: Page = () => (
@@ -140,7 +140,7 @@ Render with `<InlineSvg>` per the general rule above (viewBox normalization, res
 
 Read `references/mermaid.md` for the full Mermaid guide. Key points:
 
-- Use `<Mermaid chart={...} config={...} style={{ width, height }} />` from `@open-slide/core`
+- Use `<Mermaid chart={...} config={...} style={{ width, height }} />` from `@kywk/open-slide-core`
 - Match Mermaid theme to the slide's DesignSystem:
 
 ```tsx

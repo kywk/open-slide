@@ -37,7 +37,7 @@ Do **not** use Mermaid for:
 ## Authoring API
 
 ```tsx
-import { Mermaid, type Page } from '@open-slide/core';
+import { Mermaid, type Page } from '@kywk/open-slide-core';
 
 const pipeline = `
 flowchart LR

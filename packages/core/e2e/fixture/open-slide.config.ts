@@ -1,4 +1,4 @@
-import type { OpenSlideConfig } from '@open-slide/core';
+import type { OpenSlideConfig } from '@kywk/open-slide-core';
 
 const openSlideConfig: OpenSlideConfig = {};
 

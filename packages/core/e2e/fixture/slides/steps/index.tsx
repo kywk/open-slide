@@ -1,4 +1,4 @@
-import { Mermaid, type Page, type SlideMeta, Step, Steps } from '@open-slide/core';
+import { Mermaid, type Page, type SlideMeta, Step, Steps } from '@kywk/open-slide-core';
 import { useEffect, useState } from 'react';
 
 export const meta: SlideMeta = {

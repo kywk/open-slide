@@ -8,7 +8,7 @@ import {
   Steps,
   useIsActivePage,
   useSlidePageNumber,
-} from '@open-slide/core';
+} from '@kywk/open-slide-core';
 import { type CSSProperties, type ReactNode, useEffect, useId, useState } from 'react';
 
 export const design: DesignSystem = {

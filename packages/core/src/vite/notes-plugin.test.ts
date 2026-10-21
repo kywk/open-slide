@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { ownPackageName } from '../package-info.ts';
 import { applyNotesEdit, renderNoteLiteral } from './notes-plugin.ts';
 import { hasRecentWrite, RECENT_WRITE_WINDOW_MS, recordWrite } from './recent-writes.ts';
+
+const CORE = ownPackageName();
 
 describe('renderNoteLiteral', () => {
   it('returns undefined for empty strings', () => {
@@ -22,7 +25,7 @@ describe('renderNoteLiteral', () => {
 
 describe('applyNotesEdit / no existing export', () => {
   it('inserts a new notes export padded to the target index', () => {
-    const source = `import type { Page } from '@open-slide/core';\n\nexport default [];\n`;
+    const source = `import type { Page } from '${CORE}';\n\nexport default [];\n`;
     const result = applyNotesEdit(source, 2, 'hello');
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -58,7 +61,7 @@ describe('applyNotesEdit / no existing export', () => {
 describe('applyNotesEdit / existing export', () => {
   it('updates an existing slot in place', () => {
     const source = [
-      "import type { Page } from '@open-slide/core';",
+      `import type { Page } from '${CORE}';`,
       '',
       'export default [];',
       '',

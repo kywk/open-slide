@@ -8,16 +8,18 @@
 
 # open-slide
 
-[![GitHub stars](https://img.shields.io/github/stars/open-slide/open-slide?style=for-the-badge)](https://github.com/open-slide/open-slide/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/open-slide/open-slide?style=for-the-badge)](https://github.com/open-slide/open-slide/network/members)
+[![GitHub stars](https://img.shields.io/github/stars/kywk/open-slide?style=for-the-badge)](https://github.com/kywk/open-slide/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/kywk/open-slide?style=for-the-badge)](https://github.com/kywk/open-slide/network/members)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+
+> **Unofficial fork.** This repository is a fork of [open-slide/open-slide](https://github.com/open-slide/open-slide), maintained by [@1weiho](https://github.com/1weiho). The MIT license and the original copyright are unchanged; this fork is published under the `@kywk` scope and is not affiliated with or endorsed by upstream.
 
 **The slide framework built for agents.** Describe your deck in natural language — your coding agent writes the React. open-slide handles the canvas, scaling, navigation, hot reload, and present mode so the agent can focus on content.
 
 Every slide renders into a fixed **1920 × 1080** canvas. Pages are arbitrary React components, not a constrained DSL.
 
 ```bash
-npx @open-slide/cli init my-slide
+npx @kywk/open-slide-cli init my-slide
 ```
 
 ## Why open-slide
@@ -64,7 +66,7 @@ Outputs a plain static build — one-click deploy to Vercel, Cloudflare Pages, Z
 ## Get started
 
 ```bash
-npx @open-slide/cli init my-slide
+npx @kywk/open-slide-cli init my-slide
 cd my-slide
 pnpm dev
 ```
@@ -77,15 +79,15 @@ This repo is a pnpm + Turbo monorepo.
 
 | Path | Description |
 | --- | --- |
-| [packages/core](packages/core) | `@open-slide/core` — runtime (home page, slide viewer, present mode, inspector), Vite plugin, and the `open-slide` dev/build/preview CLI. |
-| [packages/cli](packages/cli) | `@open-slide/cli` — `npx @open-slide/cli init` scaffolder. Generates a minimal workspace where Vite/React/tsconfig stay hidden inside core. |
-| [apps/demo](apps/demo) | Example workspace that consumes `@open-slide/core` via `workspace:*`. Used for local development of the framework. |
+| [packages/core](packages/core) | `@kywk/open-slide-core` — runtime (home page, slide viewer, present mode, inspector), Vite plugin, and the `open-slide` dev/build/preview CLI. |
+| [packages/cli](packages/cli) | `@kywk/open-slide-cli` — `npx @kywk/open-slide-cli init` scaffolder. Generates a minimal workspace where Vite/React/tsconfig stay hidden inside core. |
+| [apps/demo](apps/demo) | Example workspace that consumes `@kywk/open-slide-core` via `workspace:*`. Used for local development of the framework. |
 
 ## Development
 
 ```bash
 pnpm install
-pnpm dev      # runs the demo against the local @open-slide/core
+pnpm dev      # runs the demo against the local @kywk/open-slide-core
 pnpm build    # builds all packages
 pnpm check    # type-checks all packages
 pnpm lint     # lints via biome

@@ -2,6 +2,7 @@ import { type ChildProcess, fork } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { type BindCLIShortcutsOptions, createServer, mergeConfig, type ViteDevServer } from 'vite';
+import { ownPackageName } from '../package-info.ts';
 import { createViteConfig } from '../vite/config.ts';
 import { DEV_SUPERVISED_ENV, RESTART_EXIT_CODE } from '../vite/routes/restart.ts';
 import {
@@ -138,7 +139,7 @@ function devArgs(opts: DevOptions): string[] {
 function resolveDevEntry(userCwd: string): string {
   // resolved on every spawn so a restart after an in-app update follows the
   // node_modules symlink to the newly installed version
-  const installed = path.join(userCwd, 'node_modules', '@open-slide', 'core', 'bin.js');
+  const installed = path.join(userCwd, 'node_modules', ...ownPackageName().split('/'), 'bin.js');
   if (existsSync(installed)) return installed;
   return process.argv[1] as string;
 }

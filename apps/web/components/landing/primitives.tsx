@@ -73,7 +73,7 @@ const PAGE_LOOP = 9600;
 
 function pageLines({ accent, word, subtitle }: PageVariant) {
   return [
-    "import type { Page } from '@open-slide/core';",
+    "import type { Page } from '@kywk/open-slide-core';",
     '',
     `const ACCENT = '${accent}';`,
     `const WORD = '${word}';`,
@@ -93,7 +93,7 @@ function pageLines({ accent, word, subtitle }: PageVariant) {
 }
 
 const STEP_LINES = [
-  "import { Step, Steps, type Page } from '@open-slide/core';",
+  "import { Step, Steps, type Page } from '@kywk/open-slide-core';",
   '',
   'const Beats: Page = () => (',
   '  <section style={{ padding: 120 }}>',
@@ -114,7 +114,7 @@ const STEP_CUES = [1400, 2600, 3800] as const;
 const STEP_LOOP = 6400;
 
 const TRANSITION_LINES = [
-  "import type { Page, SlideTransition } from '@open-slide/core';",
+  "import type { Page, SlideTransition } from '@kywk/open-slide-core';",
   '',
   'const Cover: Page = () => <section>…</section>;',
   'const Agenda: Page = () => <section>…</section>;',
@@ -138,7 +138,7 @@ const TRANSITION_LOOP = 3800;
 const AGENDA_ROWS = ['Where we are', 'What ships', "What's next"];
 
 const MORPH_LINES = [
-  "import { MorphElement, type Page } from '@open-slide/core';",
+  "import { MorphElement, type Page } from '@kywk/open-slide-core';",
   '',
   'const Cover: Page = () => (',
   "  <section style={{ display: 'grid', placeItems: 'center' }}>",

@@ -1,4 +1,4 @@
-import { type DesignSystem, InlineSvg, type Page, type SlideMeta } from '@open-slide/core';
+import { type DesignSystem, InlineSvg, type Page, type SlideMeta } from '@kywk/open-slide-core';
 import type { ReactNode } from 'react';
 import architectureSvg from './assets/architecture.svg?raw';
 import flowchartSvg from './assets/flowchart.svg?raw';

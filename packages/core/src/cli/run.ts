@@ -3,6 +3,7 @@ import * as readline from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import chalk from 'chalk';
 import { Command, Option } from 'commander';
+import { ownPackageName } from '../package-info.ts';
 import { assertViteResolvesToCore } from './preflight.ts';
 import { detectSkillsDrift, syncSkills } from './sync.ts';
 import { glyph, readVersion } from './ui.ts';
@@ -129,7 +130,7 @@ export async function run(argv: string[]): Promise<void> {
 
   program
     .command('sync:skills')
-    .description('Sync built-in skills from @open-slide/core into this workspace')
+    .description(`Sync built-in skills from ${ownPackageName()} into this workspace`)
     .option('--dry-run', 'show what would change without writing')
     .action(async (flags: SyncFlags) => {
       await syncSkills(resolveBuiltinSkillsDir(), flags);
