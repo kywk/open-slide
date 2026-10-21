@@ -1,5 +1,27 @@
 # @kywk/open-slide-core
 
+## 2.3.0
+
+### Minor Changes
+
+- [`cb9c6ba`](https://github.com/kywk/open-slide/commit/cb9c6ba19c15037fcd1bb320cd4799f5c687c3ea) Thanks [@kywk](https://github.com/kywk)! - Add an export-ready Mermaid primitive and agent visualization guidance.
+
+- [`919d919`](https://github.com/kywk/open-slide/commit/919d919fca78e9d67dbb3ebc14b1c72e2cb7b1c1) Thanks [@kywk](https://github.com/kywk)! - Publish under the @kywk scope — the packages are now `@kywk/open-slide-core` and `@kywk/open-slide-cli`.
+
+- [`5ac7011`](https://github.com/kywk/open-slide/commit/5ac701133afdb9c8f0ebc9d382909eea535a94b8) Thanks [@kywk](https://github.com/kywk)! - Add `<InlineSvg>` component for embedding static SVG diagrams with lightbox support, and a diagram routing reference that integrates diagram-design skill when available.
+
+- [`60579ab`](https://github.com/kywk/open-slide/commit/60579ab0f7de9a41038dc747b53b8f699aa37922) Thanks [@kywk](https://github.com/kywk)! - Add `lightbox` prop to `<Mermaid>` — click a diagram to expand it to near-fullscreen.
+
+- [`c4f9e64`](https://github.com/kywk/open-slide/commit/c4f9e6423577c290e4f5b2fe0547125fc1cfb299) Thanks [@kywk](https://github.com/kywk)! - Switch Mermaid diagram renderer to Pele with automatic design token and CSS variable theming.
+
+### Patch Changes
+
+- [#559](https://github.com/open-slide/open-slide/pull/559) [`4081bf9`](https://github.com/kywk/open-slide/commit/4081bf973db1c4b81b2772fafa66f93004c98bde) Thanks [@1weiho](https://github.com/1weiho)! - Keep letterbox bars black in present mode when the screen isn't 16:9.
+
+- [`b70108a`](https://github.com/kywk/open-slide/commit/b70108a3bf66025f4a6948732d6dcaae910e8e55) Thanks [@kywk](https://github.com/kywk)! - Match the Mermaid lightbox panel to the slide background so diagrams stay legible on light slides.
+
+- [`981bca5`](https://github.com/kywk/open-slide/commit/981bca5ea142fef72c232dbfd2b65787f9ae4c17) Thanks [@kywk](https://github.com/kywk)! - Declare types for `?raw` asset imports so slide files using `InlineSvg` typecheck.
+
 > Versions up to 2.2.0 were published as `@open-slide/core` by upstream.
 
 ## 2.2.0
