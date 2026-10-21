@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
@@ -31,7 +32,7 @@ jobs:
           cache: pnpm
 
       - name: Upgrade npm for OIDC trusted publishing
-        run: npm install -g npm@11
+        run: npm install -g npm@12
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
