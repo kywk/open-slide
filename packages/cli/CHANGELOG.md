@@ -1,5 +1,11 @@
 # @kywk/open-slide-cli
 
+## 2.1.1
+
+### Patch Changes
+
+- [`f77ba04`](https://github.com/kywk/open-slide/commit/f77ba049491a000667552189f2076309b0b3b118) Thanks [@kywk](https://github.com/kywk)! - Release from the fork's own npm pipeline.
+
 ## 2.1.0
 
 ### Minor Changes
