@@ -1,5 +1,11 @@
 # @kywk/open-slide-core
 
+## 2.3.2
+
+### Patch Changes
+
+- [`a42130d`](https://github.com/kywk/open-slide/commit/a42130d86ee2a2bc3d4bceeb485d9d5906009a28) Thanks [@kywk](https://github.com/kywk)! - Cache rendered Mermaid and inline SVG output and pre-bundle Pele in dev mode.
+
 ## 2.3.1
 
 ### Patch Changes
