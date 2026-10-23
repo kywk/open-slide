@@ -4,6 +4,23 @@ You are working on the **open-slide framework** — the runtime, CLI, and toolin
 
 (Slide-authoring guidance lives in the `slide-authoring` / `create-slide` skills under `apps/demo/.claude/skills/`. Use those only when editing files inside `apps/demo/slides/`.)
 
+## Upstream Relationship & Project Scope
+
+- **Downstream Fork Philosophy**: This repository is an active downstream fork of [open-slide/open-slide](https://github.com/open-slide/open-slide) (original author: [@1weiho](https://github.com/1weiho)). Prior upstream PRs were not merged upstream; this project continuously follows upstream (`upstream/main`) via git merges while developing and maintaining its own feature extensions.
+- **Upstream Alignment**: Do not unnecessarily deviate from upstream core functionality. Keep core runtime behaviors compatible.
+- **Attribution & Docs**:
+  - Always retain upstream contribution info, credits, and original copyright in documentation (`README.md`, etc.).
+  - Core features must link to upstream documentation ([open-slide.dev](https://open-slide.dev) and [github.com/open-slide/open-slide](https://github.com/open-slide/open-slide)). Do not duplicate lengthy descriptions of upstream-provided features.
+  - Focus repo documentation on this fork's unique extensions: Pele-powered `<Mermaid>`, `<InlineSvg>`, lightbox, and diagram routing workflows.
+  - Installation guides must default to `@kywk/open-slide-cli`, but always include a clear note directing users to install the upstream package (`@open-slide/cli`) if they do not require this fork's extensions.
+- **Upstream Merge Procedure**:
+  1. Merge upstream: `git merge upstream/main`.
+  2. Resolve conflicts in `packages/core/package.json` to keep `"name": "@kywk/open-slide-core"` and `@kywk` scope.
+  3. Run `node scripts/rename-scope.mjs --write` to rewrite any newly upstreamed `@open-slide/*` references across the codebase.
+  4. Ensure any code injecting package imports into user files uses `ownPackageName()` from `src/package-info.ts` rather than hardcoding package names.
+  5. Never bump versions or edit `CHANGELOG.md` manually (`changeset version` manages that).
+  6. Verify: `pnpm check`, `pnpm typecheck`, `pnpm test`, and `pnpm core check:pack`.
+
 ## Layout
 
 pnpm + Turbo monorepo.
