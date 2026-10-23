@@ -1,6 +1,6 @@
 import { render as renderPele } from 'pele';
 import type { CSSProperties, ReactNode } from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 export interface MermaidConfigLegacy {
@@ -47,12 +47,12 @@ function isLightColor(color: string): boolean {
   return luminance > 0.5;
 }
 
-function normalizeSvg(svg: string, id: string): SVGSVGElement {
+function normalizeSvg(svg: string, id?: string): SVGSVGElement {
   const template = document.createElement('template');
   template.innerHTML = svg.trim();
   const element = template.content.querySelector('svg');
   if (!element) throw new Error('Pele did not return an SVG');
-  if (!element.id) {
+  if (id && !element.id) {
     element.id = id;
   }
   const origWidth = element.getAttribute('width') ?? '800';
@@ -71,6 +71,28 @@ function normalizeSvg(svg: string, id: string): SVGSVGElement {
   element.style.maxWidth = '100%';
   element.style.maxHeight = '100%';
   return element;
+}
+
+const MAX_CACHE_ENTRIES = 100;
+const diagramCache = new Map<string, SVGSVGElement>();
+
+function getCachedDiagram(chart: string): SVGSVGElement {
+  let template = diagramCache.get(chart);
+  if (template) {
+    diagramCache.delete(chart);
+    diagramCache.set(chart, template);
+  } else {
+    const { svg } = renderPele(chart);
+    template = normalizeSvg(svg);
+    if (diagramCache.size >= MAX_CACHE_ENTRIES) {
+      const oldest = diagramCache.keys().next().value;
+      if (oldest !== undefined) diagramCache.delete(oldest);
+    }
+    diagramCache.set(chart, template);
+  }
+  const clone = template.cloneNode(true) as SVGSVGElement;
+  clone.id = nextRenderId();
+  return clone;
 }
 
 const peleDefaults: CSSProperties = {
@@ -213,7 +235,17 @@ export function Mermaid({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const diagramRef = useRef<HTMLDivElement>(null);
   const renderVersion = useRef(0);
-  const [diagram, setDiagram] = useState<RenderedDiagram | null>(null);
+  const [diagram, setDiagram] = useState<RenderedDiagram | null>(() => {
+    if (typeof document === 'undefined') return null;
+    try {
+      if (diagramCache.has(chart)) {
+        return { element: getCachedDiagram(chart) };
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  });
   const [error, setError] = useState<unknown>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [canvasBg, setCanvasBg] = useState('#ffffff');
@@ -222,16 +254,16 @@ export function Mermaid({
   useEffect(() => {
     let active = true;
     const version = ++renderVersion.current;
-    setDiagram(null);
-    setError(null);
 
     try {
-      const { svg } = renderPele(chart);
+      const element = getCachedDiagram(chart);
       if (!active || version !== renderVersion.current) return;
-      setDiagram({ element: normalizeSvg(svg, nextRenderId()) });
+      setError(null);
+      setDiagram({ element });
     } catch (cause: unknown) {
       if (!active || version !== renderVersion.current) return;
       wrapperRef.current?.replaceChildren();
+      setDiagram(null);
       setError(cause);
     }
 
@@ -240,7 +272,7 @@ export function Mermaid({
     };
   }, [chart]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!diagram || !diagramRef.current) return;
     const container = diagramRef.current;
     container.replaceChildren(diagram.element);
@@ -334,9 +366,8 @@ function MermaidLightbox({
 
   useEffect(() => {
     try {
-      const { svg } = renderPele(chart);
       if (!containerRef.current) return;
-      const el = normalizeSvg(svg, nextRenderId());
+      const el = getCachedDiagram(chart);
       containerRef.current.replaceChildren(el);
     } catch {
       // ignore

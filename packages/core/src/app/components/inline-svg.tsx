@@ -1,4 +1,11 @@
-import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
+import {
+  type CSSProperties,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { createPortal } from 'react-dom';
 
 export interface InlineSvgProps {
@@ -26,26 +33,52 @@ function isLightColor(color: string): boolean {
   return luminance > 0.5;
 }
 
+const MAX_SVG_CACHE_ENTRIES = 100;
+const svgCache = new Map<string, SVGSVGElement>();
+
+function getCachedSvg(svg: string, alt?: string): SVGSVGElement | null {
+  const cacheKey = alt ? `${alt}:::${svg}` : svg;
+  let template = svgCache.get(cacheKey);
+  if (template) {
+    svgCache.delete(cacheKey);
+    svgCache.set(cacheKey, template);
+  } else {
+    const el = document.createElement('template');
+    el.innerHTML = svg.trim();
+    const svgEl = el.content.querySelector('svg');
+    if (!svgEl) return null;
+    svgEl.style.width = '100%';
+    svgEl.style.height = '100%';
+    svgEl.style.display = 'block';
+    svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    if (alt && !svgEl.getAttribute('aria-label')) {
+      svgEl.setAttribute('aria-label', alt);
+      svgEl.setAttribute('role', 'img');
+    }
+    template = svgEl;
+    if (svgCache.size >= MAX_SVG_CACHE_ENTRIES) {
+      const oldest = svgCache.keys().next().value;
+      if (oldest !== undefined) svgCache.delete(oldest);
+    }
+    svgCache.set(cacheKey, template);
+  }
+  return template.cloneNode(true) as SVGSVGElement;
+}
+
 export function InlineSvg({ svg, className, style, lightbox = true, alt }: InlineSvgProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [canvasBg, setCanvasBg] = useState('#ffffff');
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    el.innerHTML = svg;
-    const svgEl = el.querySelector('svg');
-    if (svgEl) {
-      svgEl.style.width = '100%';
-      svgEl.style.height = '100%';
-      svgEl.style.display = 'block';
-      svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-      if (alt && !svgEl.getAttribute('aria-label')) {
-        svgEl.setAttribute('aria-label', alt);
-        svgEl.setAttribute('role', 'img');
-      }
+    const node = getCachedSvg(svg, alt);
+    if (node) {
+      el.replaceChildren(node);
+    } else {
+      el.replaceChildren();
     }
   }, [svg, alt]);
 
@@ -111,16 +144,14 @@ function SvgLightbox({
   const containerRef = useRef<HTMLDivElement>(null);
   const light = isLightColor(canvasBg);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    el.innerHTML = svg;
-    const svgEl = el.querySelector('svg');
-    if (svgEl) {
-      svgEl.style.width = '100%';
-      svgEl.style.height = '100%';
-      svgEl.style.display = 'block';
-      svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    const node = getCachedSvg(svg);
+    if (node) {
+      el.replaceChildren(node);
+    } else {
+      el.replaceChildren();
     }
   }, [svg]);
 
