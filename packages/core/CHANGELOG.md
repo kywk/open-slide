@@ -30,6 +30,22 @@
 
 > Versions up to 2.2.0 were published as `@open-slide/core` by upstream.
 
+## 2.3.1
+
+### Patch Changes
+
+- [#574](https://github.com/open-slide/open-slide/pull/574) [`8b67b02`](https://github.com/open-slide/open-slide/commit/8b67b0257d1f23138afcd640aaa0e0a468bd5f7c) Thanks [@1weiho](https://github.com/1weiho)! - Ship the agent modules the app imports so `open-slide dev` no longer fails to resolve `agent/types`, and stop publishing test files.
+
+## 2.3.0
+
+### Minor Changes
+
+- [#567](https://github.com/open-slide/open-slide/pull/567) [`c93ca36`](https://github.com/open-slide/open-slide/commit/c93ca36f2463cdf0fc47dc91fda2bea8c2a3d030) Thanks [@1weiho](https://github.com/1weiho)! - Add an in-app agent panel that uses a locally installed Claude Code or Codex to draft decks, apply comments, and edit pages.
+
+### Patch Changes
+
+- [#559](https://github.com/open-slide/open-slide/pull/559) [`4081bf9`](https://github.com/open-slide/open-slide/commit/4081bf973db1c4b81b2772fafa66f93004c98bde) Thanks [@1weiho](https://github.com/1weiho)! - Keep letterbox bars black in present mode when the screen isn't 16:9.
+
 ## 2.2.0
 
 ### Minor Changes

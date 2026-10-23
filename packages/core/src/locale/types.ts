@@ -1,3 +1,5 @@
+import type { AgentEffort } from '../agent/types.ts';
+
 export type Plural = { one: string; other: string };
 
 export type Locale = {
@@ -100,6 +102,7 @@ export type Locale = {
   };
 
   slide: {
+    resizeSidePanel: string;
     home: string;
     backToHome: string;
     agentConnected: string;
@@ -574,5 +577,111 @@ export type Locale = {
     usedByEmpty: string;
     expandPromptAria: string;
     collapsePromptAria: string;
+  };
+
+  agent: {
+    title: string;
+    beta: string;
+    betaTitle: string;
+    betaHint: string;
+    open: string;
+    openTitle: string;
+    close: string;
+    newSession: string;
+    sessions: string;
+    noSessions: string;
+    deleteSession: string;
+    historyThisDeck: string;
+    historyOtherDecks: string;
+    historyEmptyHint: string;
+    sessionRunning: string;
+    /** template: "Ask {provider} to create or edit slides…" */
+    composerPlaceholder: string;
+    send: string;
+    stop: string;
+    working: string;
+    /** template: "Page {n}" */
+    contextPage: string;
+    contextSelection: string;
+    /** plural, template: "{count} comments" */
+    pendingComments: Plural;
+    applyComments: string;
+    /** template: "Apply with {provider}" */
+    applyCommentsWith: string;
+    createDeck: string;
+    /** template: "Create a deck with {provider}" */
+    createDeckWith: string;
+    quickCreate: string;
+    quickCreateHint: string;
+    quickApply: string;
+    quickApplyHint: string;
+    quickTheme: string;
+    quickThemeHint: string;
+    quickEdit: string;
+    quickEditHint: string;
+    emptyTitle: string;
+    emptyHint: string;
+    questionSubmit: string;
+    questionOther: string;
+    questionOtherPlaceholder: string;
+    questionCancelled: string;
+    permissionTitle: string;
+    allow: string;
+    deny: string;
+    allowed: string;
+    denied: string;
+    autoApprove: string;
+    autoApproveHint: string;
+    resultDone: string;
+    resultStopped: string;
+    /** template: "{seconds}s" */
+    resultSeconds: string;
+    errorEyebrow: string;
+    statusLoading: string;
+    disabled: string;
+    connectTitle: string;
+    connectDescription: string;
+    connect: string;
+    connecting: string;
+    connected: string;
+    /** template: "Adds {pkg} to this workspace with {pm}." */
+    connectInstallHint: string;
+    /** template: "CLI found · v{version}" */
+    cliFound: string;
+    cliFoundNoVersion: string;
+    cliMissing: string;
+    /** template: "Install the {name} CLI and sign in once; the panel reuses its login." */
+    cliHint: string;
+    needCliTitle: string;
+    needCliDescription: string;
+    checkAgain: string;
+    retry: string;
+    /** template: "{name} connected" */
+    toastConnected: string;
+    /** template: "Could not install {pkg}" */
+    toastConnectFailed: string;
+    manageConnections: string;
+    backToChat: string;
+    toastSendFailed: string;
+    newDeckTitle: string;
+    newDeckHint: string;
+    newDeckPlaceholder: string;
+    toastCreateDeckFailed: string;
+    steps: Plural;
+    questionSkip: string;
+    copyMessage: string;
+    copied: string;
+    editMessage: string;
+    cancelEdit: string;
+    sendEdit: string;
+    editHint: string;
+    modelDefault: string;
+    reasoning: string;
+    effortAuto: string;
+    efforts: Record<AgentEffort, string>;
+    /** template: "{provider} is editing" */
+    presenceEditing: string;
+    presenceThinking: string;
+    presenceWaiting: string;
   };
 };
