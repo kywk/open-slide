@@ -46,7 +46,7 @@ cpSync(path.join(template, 'themes'), path.join(scratchDir, 'themes'), { recursi
 mkdirSync(path.join(scratchDir, 'slides/q2-launch'), { recursive: true });
 writeFileSync(
   path.join(scratchDir, 'slides/q2-launch/index.tsx'),
-  `import { ImagePlaceholder, type Page, type SlideMeta } from '@open-slide/core';
+  `import { ImagePlaceholder, type Page, type SlideMeta } from '@kywk/open-slide-core';
 
 export const meta: SlideMeta = { title: 'Q2 Launch' };
 

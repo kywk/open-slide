@@ -1,6 +1,6 @@
 ---
 name: changelog-entry
-description: Write the hand-curated entries for open-slide's /changelog page (apps/web/lib/changelog.ts) from new @open-slide/core releases — turn CHANGELOG.md line items into a titled entry with a summary, highlights, patch notes, contributor credits, docs links, and a framed screenshot when the release earns one. Use this whenever a new version of @open-slide/core is released or about to be (a "chore: release packages" PR), when apps/web/lib/changelog.test.ts fails with "Missing from apps/web/lib/changelog.ts", or when the user asks to update, add to, or fix the changelog page — even if they only say "update the changelog".
+description: Write the hand-curated entries for open-slide's /changelog page (apps/web/lib/changelog.ts) from new @kywk/open-slide-core releases — turn CHANGELOG.md line items into a titled entry with a summary, highlights, patch notes, contributor credits, docs links, and a framed screenshot when the release earns one. Use this whenever a new version of @kywk/open-slide-core is released or about to be (a "chore: release packages" PR), when apps/web/lib/changelog.test.ts fails with "Missing from apps/web/lib/changelog.ts", or when the user asks to update, add to, or fix the changelog page — even if they only say "update the changelog".
 ---
 
 # Changelog entries

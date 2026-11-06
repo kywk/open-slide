@@ -18,7 +18,7 @@ const onPage = eras.flatMap((era) =>
 const stable = core.versions.filter((version) => !version.includes('-'));
 
 describe('changelog page data', () => {
-  it('covers every stable @open-slide/core release', () => {
+  it('covers every stable @kywk/open-slide-core release', () => {
     const missing = stable.filter((version) => !onPage.includes(version));
     expect(
       missing,
