@@ -1,10 +1,4 @@
-<img width="1280" height="640" alt="open-slide github cover" src="https://github.com/user-attachments/assets/da535284-f7a9-4834-b281-f9ac6fe416e8" />
-
-<br />
-<br />
-<a href="https://vercel.com/open-source-program">
-  <img alt="Vercel OSS Program" src="https://vercel.com/oss/program-badge-2026.svg" />
-</a>
+<img width="1280" height="640" alt="open-slide" src="https://github.com/user-attachments/assets/da535284-f7a9-4834-b281-f9ac6fe416e8" />
 
 # open-slide
 
@@ -15,18 +9,12 @@
 > [!IMPORTANT]
 > **Downstream Fork & Upstream Attribution**
 > This repository is an active downstream fork of [open-slide/open-slide](https://github.com/open-slide/open-slide), created and maintained by [@1weiho](https://github.com/1weiho) ([Yiwei Ho](https://github.com/1weiho)).
-> 
+>
 > We track and merge upstream releases regularly while providing extended capabilities focused on vector diagramming, Pele integration, and visual diagram workflows. Published under the `@kywk` scope (`@kywk/open-slide-core` and `@kywk/open-slide-cli`).
 
-**The slide framework built for agents.** Describe your deck in natural language — your coding agent writes the React. open-slide handles canvas scaling, navigation, hot reload, and present mode so the agent can focus on content.
+The slide framework built for agents. Describe a deck, and your coding agent writes it as React. open-slide handles the canvas, scaling, navigation, hot reload, editing, and present mode.
 
----
-
-## Getting Started
-
-### Installation (This Fork)
-
-Create a new presentation workspace using this fork:
+Every page is a React component rendered on a fixed 1920 × 1080 canvas.
 
 ```bash
 npx @kywk/open-slide-cli init my-slide
@@ -35,36 +23,58 @@ pnpm install
 pnpm dev
 ```
 
-The scaffolded workspace includes preconfigured agent skills (`create-slide`, `slide-authoring`, `apply-comments`) along with built-in support for our extended diagramming components.
-
 > [!NOTE]
 > **Don't need the fork extensions?**
 > If you only require standard open-slide without our diagramming additions (such as Pele-rendered `<Mermaid>`, `<InlineSvg>` lightbox, and diagram-design routing), please install and use the official upstream version directly:
 > ```bash
-> npx @open-slide/cli init my-slide
+> npx @open-slide/cli init my-deck
 > ```
 > Visit the official [upstream repository](https://github.com/open-slide/open-slide) and the official [open-slide documentation](https://open-slide.dev) for standard usage.
 
----
+[Documentation](https://open-slide.dev/docs) · [Changelog](https://open-slide.dev/changelog)
 
-## Core Features (Upstream)
+## Agent panel
 
-open-slide provides a complete, agent-native presentation environment. For detailed documentation on all core capabilities, please visit the official documentation:
+Connect the Claude Code or Codex CLI you already use and drive it from the browser. Press `A` on any slide to open the panel.
 
-| Feature | Description | Official Documentation |
-| --- | --- | --- |
-| **Fixed 1920 × 1080 Canvas** | True pixel-accurate scaling and standard React + Tailwind components | [Getting Started](https://open-slide.dev/docs/getting-started) |
-| **Agent-Native Authoring** | Claude Code, Codex, and Cursor integration with built-in authoring skills | [Agent Guide](https://open-slide.dev/docs/core-feature/agent) |
-| **In-App Agent Panel** | Browser-native agent chat, live edits, question cards, and presence indicators | [Agent Panel](https://open-slide.dev/docs/core-feature/agent) |
-| **In-Browser Inspector & Comments** | Point-and-click comment mode with `@slide-comment` markers and `/apply-comments` | [Inspector & Comments](https://open-slide.dev/docs/core-feature/inspector) |
-| **Assets Manager & svgl Search** | Asset management, Google Fonts preview, and [svgl.app](https://svgl.app) logo picker | [Assets Manager](https://open-slide.dev/docs/core-feature/assets-manager) |
-| **Stage-Ready Presenter Mode** | Dual-display preview, markdown speaker notes, and presentation timer | [Presenter Mode](https://open-slide.dev/docs) |
-| **Multi-Format Export** | Export to static HTML, print PDF, and editable native PowerPoint (PPTX) | [Export Guide](https://open-slide.dev/docs/core-feature/export) |
-| **Deck & Theme Management** | Folder organization with emoji icons, theme extraction and tokens | [Themes](https://open-slide.dev/docs/core-feature/themes) |
+![The agent panel beside the canvas while Claude Code edits the open deck](.github/assets/agent-panel.webp)
 
----
+- **Draft a deck.** Click New deck on the home page and describe it. The agent writes it page by page while the canvas follows along.
+- **Edit what you see.** The current slide, page, and selected element go along with every message, so "make this bigger" just works.
+- **Apply comments** with one click from the comment bar.
+- **Uses your existing login.** The SDK installs into the workspace the first time you open the panel. No API keys to configure.
 
-## Fork Extensions & Usage Tips
+Prefer the terminal? The bundled skills (`/create-slide`, `/apply-comments`, `/create-theme`) work with any coding agent, including Claude Code, Codex, Cursor, and others.
+
+## Comment mode
+
+Press `C`, click an element or drag across a region, and leave a note. Notes are saved as `@slide-comment` markers in the source, and the agent applies them all in one pass.
+
+![Comment mode with pinned notes beside the slide](.github/assets/comment-mode.webp)
+
+## Present mode
+
+Fullscreen playback with keyboard navigation, and a presenter view with the next slide, speaker notes, and a timer.
+
+![Presenter view with the current slide, next slide, speaker notes, and timer](.github/assets/presenter.webp)
+
+## Also included
+
+- Visual editor with drag, resize, alignment guides, and inline text editing
+- Themes, page transitions, step-by-step reveals, and shared-element morphs
+- Assets manager with brand logo search via [svgl](https://svgl.app) and Google Fonts
+- Export to static HTML, PDF, and PPTX
+- Static build that deploys to Vercel, Cloudflare Pages, Netlify, or any static host
+
+For detailed documentation on all core capabilities, please visit the official documentation:
+
+| Feature | Official Documentation |
+| --- | --- |
+| Agent-native authoring & agent panel | [Agent Guide](https://open-slide.dev/docs/core-feature/agent) |
+| Multi-format export (HTML, PDF, PPTX) | [Export Guide](https://open-slide.dev/docs/core-feature/export) |
+| Deck & theme management | [Themes](https://open-slide.dev/docs/core-feature/themes) |
+
+## Fork Extensions
 
 This fork extends open-slide with **production-grade technical and editorial diagramming capabilities**, making it easy for AI agents and human authors to embed, theme, and interact with diagrams.
 
@@ -133,25 +143,21 @@ Is the `diagram-design` skill available?
 - **Full-Bleed**: For dense system architectures where the diagram is the hero element. Use a small top eyebrow label and allocate the canvas (`width: 1800, height: 960`).
 - **Concise Node Labels**: Aim for **3–5 words maximum** per node label. Use `<br/>` for intentional line breaks (`A["Build<br/>container"]`). If a diagram exceeds 15–20 nodes, split across multiple slides rather than shrinking labels beyond legibility.
 
----
-
-## Monorepo Layout
+## Repository
 
 | Path | Package | Role |
 | --- | --- | --- |
-| [packages/core](packages/core) | `@kywk/open-slide-core` | Runtime (viewer, present mode, inspector, Pele Mermaid, InlineSvg), Vite plugin, CLI. |
-| [packages/cli](packages/cli) | `@kywk/open-slide-cli` | `npx @kywk/open-slide-cli init` scaffolder + project template. |
-| [apps/demo](apps/demo) | private | Example workspace consuming local `@kywk/open-slide-core` via `workspace:*`. |
-| [apps/web](apps/web) | private | Documentation and landing site. |
-
-## Development
+| [`packages/core`](packages/core) | `@kywk/open-slide-core` | Runtime (viewer, present mode, inspector, Pele Mermaid, InlineSvg), Vite plugin, CLI. |
+| [`packages/cli`](packages/cli) | `@kywk/open-slide-cli` | `npx @kywk/open-slide-cli init` scaffolder + project template. |
+| [`apps/demo`](apps/demo) | private | Example workspace consuming local `@kywk/open-slide-core` via `workspace:*`. |
+| [`apps/web`](apps/web) | private | Documentation and landing site. |
 
 ```bash
 pnpm install
 pnpm dev          # Run demo against local core
 pnpm build        # Build all packages
+pnpm typecheck
 pnpm check        # Biome format & lint check
-pnpm typecheck    # TypeScript type check
 pnpm test         # Unit tests (Vitest)
 ```
 
@@ -161,15 +167,16 @@ node scripts/rename-scope.mjs --write
 pnpm check:fix
 ```
 
----
+See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
-## Upstream Credits & Support
+## Support
 
-open-slide was originally designed and built by [Yiwei Ho (@1weiho)](https://github.com/1weiho). We are grateful for his work in creating this agent-native slide framework.
+<a href="https://vercel.com/open-source-program"><img alt="Vercel OSS Program" src="https://vercel.com/oss/program-badge-2026.svg" /></a>
+
+open-slide was originally designed and built by [Yiwei Ho (@1weiho)](https://github.com/1weiho). If open-slide has been useful to you, consider supporting development:
 
 - Original Repository: [github.com/open-slide/open-slide](https://github.com/open-slide/open-slide)
 - Official Documentation: [open-slide.dev](https://open-slide.dev)
-- Support the original creator:
 
 <a href="https://buymeacoffee.com/1weiho"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="40"></a>
 
