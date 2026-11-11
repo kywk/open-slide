@@ -1,5 +1,11 @@
 # @kywk/open-slide-core
 
+## 2.3.4
+
+### Patch Changes
+
+- [`c507c2a`](https://github.com/kywk/open-slide/commit/c507c2a9ec91f8af9bf5a9f0034c2fdfc8333de6) Thanks [@kywk](https://github.com/kywk)! - Upgrade the Mermaid renderer from Pele 1.7 to 1.13 for closer Mermaid palette parity and recent diagram fixes.
+
 ## 2.3.3
 
 ### Patch Changes
